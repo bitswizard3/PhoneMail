@@ -379,7 +379,8 @@ const Auth: React.FC = () => {
                     setShowKeypad(false);
                     try {
                       const fullPhone = `${countryCode}${phone.replace(/\s/g, '')}`;
-                      const response = await fetch('http://localhost:4000/api/voice/simulate', {
+                      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+                      const response = await fetch(`${apiUrl}/voice/simulate`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ phone: fullPhone })
