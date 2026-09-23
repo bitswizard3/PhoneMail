@@ -43,8 +43,8 @@ router.post('/process', async (req: Request, res: Response) => {
         // Create new user (using phone as email prefix by default if needed, though they usually pick an alias later)
         const defaultEmail = `${callerPhone.replace(/[^0-9]/g, '').slice(-10)}@phonemail.local`;
         await pool.query(
-          `INSERT INTO users (phone, email, is_verified, has_mobile_app) 
-           VALUES ($1, $2, true, false)`,
+          `INSERT INTO users (phone, email, registration_method, has_mobile_app) 
+           VALUES ($1, $2, 'ivr', false)`,
           [callerPhone, defaultEmail]
         );
         
@@ -88,8 +88,8 @@ router.post('/simulate', async (req: Request, res: Response) => {
     if (checkUser.rows.length === 0) {
       const defaultEmail = `${callerPhone.replace(/[^0-9]/g, '').slice(-10)}@phonemail.local`;
       await pool.query(
-        `INSERT INTO users (phone, email, is_verified, has_mobile_app) 
-         VALUES ($1, $2, true, false)`,
+        `INSERT INTO users (phone, email, registration_method, has_mobile_app) 
+         VALUES ($1, $2, 'ivr', false)`,
         [callerPhone, defaultEmail]
       );
       res.json({ success: true, message: 'Account successfully activated via Simulated IVR Call!' });
