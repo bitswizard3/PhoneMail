@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, ArrowRight, Shield } from 'lucide-react';
+import { Mail, ArrowRight, Shield, PhoneCall, PhoneOff } from 'lucide-react';
 import { authAPI } from '../services/api';
 
 type AuthStep = 'phone' | 'otp';
@@ -16,6 +16,12 @@ const Auth: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [devHint, setDevHint] = useState('');
+  
+  // Call Simulation State
+  const [isCallUIOpen, setIsCallUIOpen] = useState(false);
+  const [callStatus, setCallStatus] = useState('');
+  const [showKeypad, setShowKeypad] = useState(false);
+  
   const { setUser } = useAuth();
   const navigate = useNavigate();
 
@@ -204,33 +210,19 @@ const Auth: React.FC = () => {
                   width: '100%',
                   fontSize: '15px'
                 }}
-                onClick={async () => {
+                onClick={() => {
                   if (!phone) {
                     setError('Please enter a phone number first to simulate call.');
                     return;
                   }
-                  setIsLoading(true);
-                  try {
-                    const fullPhone = `${countryCode}${phone.replace(/\s/g, '')}`;
-                    const response = await fetch('http://localhost:4000/api/voice/simulate', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ phone: fullPhone })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                      setSuccessMsg(data.message);
-                      setError('');
-                      setTimeout(() => setSuccessMsg(''), 5000);
-                    } else {
-                      setError('Simulation failed.');
-                      setSuccessMsg('');
-                    }
-                  } catch (e) {
-                    setError('Server error during simulation.');
-                  } finally {
-                    setIsLoading(false);
-                  }
+                  setIsCallUIOpen(true);
+                  setCallStatus('Calling Twilio IVR...');
+                  setShowKeypad(false);
+                  
+                  setTimeout(() => {
+                    setCallStatus('Connected. "Welcome to PhoneMail. Press 1 to activate your account."');
+                    setShowKeypad(true);
+                  }, 2500);
                 }}
               >
                 <span style={{ fontSize: '18px' }}>📞</span> 
@@ -329,6 +321,119 @@ const Auth: React.FC = () => {
           </>
         )}
       </div>
+
+      {isCallUIOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          color: 'white',
+          fontFamily: 'system-ui, -apple-system, sans-serif'
+        }}>
+          <div style={{
+            background: 'var(--surface)',
+            padding: '40px 30px',
+            borderRadius: '24px',
+            width: '90%',
+            maxWidth: '360px',
+            textAlign: 'center',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ 
+                width: '80px', height: '80px', borderRadius: '40px', 
+                backgroundColor: 'rgba(168, 85, 247, 0.2)', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '2px solid var(--accent)'
+              }}>
+                <PhoneCall size={40} color="var(--accent)" className={!showKeypad ? 'pulse-anim' : ''} />
+              </div>
+            </div>
+            
+            <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
+              Toll-Free IVR
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '15px', minHeight: '45px', marginBottom: '32px' }}>
+              {callStatus}
+            </p>
+
+            {showKeypad ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+                <button 
+                  style={{
+                    width: '72px', height: '72px', borderRadius: '36px',
+                    border: 'none', background: 'var(--accent)',
+                    color: 'white', fontSize: '28px', fontWeight: 'bold',
+                    cursor: 'pointer', boxShadow: '0 10px 25px -5px rgba(168, 85, 247, 0.5)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}
+                  onClick={async () => {
+                    setCallStatus('Processing keystroke "1"...');
+                    setShowKeypad(false);
+                    try {
+                      const fullPhone = `${countryCode}${phone.replace(/\s/g, '')}`;
+                      const response = await fetch('http://localhost:4000/api/voice/simulate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone: fullPhone })
+                      });
+                      const data = await response.json();
+                      if (data.success) {
+                        setSuccessMsg(data.message);
+                        setError('');
+                      } else {
+                        setError('Simulation failed.');
+                      }
+                    } catch (e) {
+                      setError('Server error during simulation.');
+                    }
+                    setTimeout(() => {
+                      setIsCallUIOpen(false);
+                    }, 1500);
+                  }}
+                >
+                  1
+                </button>
+                <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Press 1 to verify
+                </span>
+              </div>
+            ) : null}
+
+            <div style={{ marginTop: '40px' }}>
+              <button
+                style={{
+                  width: '64px', height: '64px', borderRadius: '32px',
+                  border: 'none', background: '#ef4444',
+                  color: 'white', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto', boxShadow: '0 10px 25px -5px rgba(239, 68, 68, 0.4)'
+                }}
+                onClick={() => setIsCallUIOpen(false)}
+              >
+                <PhoneOff size={28} />
+              </button>
+            </div>
+          </div>
+          <style>{`
+            @keyframes pulse {
+              0% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.1); opacity: 0.7; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            .pulse-anim {
+              animation: pulse 1.5s infinite ease-in-out;
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 };
