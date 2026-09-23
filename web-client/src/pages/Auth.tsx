@@ -12,6 +12,7 @@ const Auth: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [devHint, setDevHint] = useState('');
@@ -96,7 +97,8 @@ const Auth: React.FC = () => {
               Enter your phone number to sign in or create an account
             </p>
 
-            {error && <div className="error-message">{error}</div>}
+            {error && <div className="error-message" style={{ marginBottom: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#ef4444', fontSize: '14px' }}>{error}</div>}
+            {successMsg && <div className="success-message" style={{ marginBottom: '16px', padding: '12px', background: 'rgba(37, 211, 102, 0.1)', border: '1px solid rgba(37, 211, 102, 0.3)', borderRadius: '8px', color: '#25D366', fontSize: '14px' }}>{successMsg}</div>}
 
             <form className="auth-form" onSubmit={handleSendOTP}>
               <div className="input-group">
@@ -217,10 +219,12 @@ const Auth: React.FC = () => {
                     });
                     const data = await response.json();
                     if (data.success) {
-                      setError(data.message);
-                      setTimeout(() => setError(''), 4000);
+                      setSuccessMsg(data.message);
+                      setError('');
+                      setTimeout(() => setSuccessMsg(''), 5000);
                     } else {
                       setError('Simulation failed.');
+                      setSuccessMsg('');
                     }
                   } catch (e) {
                     setError('Server error during simulation.');
