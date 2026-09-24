@@ -17,6 +17,11 @@ const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.local';
  */
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Auto-delete trash older than 15 days
+    await pool.query(
+      `DELETE FROM emails WHERE is_trash = TRUE AND created_at < NOW() - INTERVAL '15 days'`
+    );
+
     const { filter = 'all', folder = 'inbox', page = 1, limit = 50 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
@@ -248,9 +253,29 @@ router.post('/send', async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Check if local recipients exist in the DB
+        const allInputRecipients = [...(to || []), ...(cc || []), ...(bcc || [])];
+        if (!isDraft) {
+          for (const recipient of allInputRecipients) {
+            const recipientEmail = recipient.includes('@')
+              ? recipient
+              : `${recipient.replace(/[^0-9]/g, '').slice(-10)}@${SMTP_DOMAIN}`;
+              
+            if (recipientEmail.endsWith(`@${SMTP_DOMAIN}`)) {
+              const userCheck = await client.query('SELECT id FROM users WHERE email = $1', [recipientEmail]);
+              if (userCheck.rows.length === 0) {
+                await client.query('ROLLBACK');
+                const displayId = recipient.includes('@') ? recipient : recipient.replace(/[^0-9]/g, '').slice(-10);
+                res.status(400).json({ error: `This number/email (${displayId}) is not registered with phonemail` });
+                return;
+              }
+            }
+          }
+        }
 
       // Determine if this is a reply
       const isReply = !!replyToEmailId;

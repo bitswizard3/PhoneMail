@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { settingsAPI } from '../services/api';
 import {
-  ArrowLeft, User, Mail, Globe, Shield, Plus, Trash2, Save, Camera
+  ArrowLeft, User, Mail, Globe, Shield, Plus, Trash2, Save, Camera,
+  Inbox, Send, PenSquare, RefreshCw
 } from 'lucide-react';
 
 const Settings: React.FC = () => {
@@ -14,8 +15,6 @@ const Settings: React.FC = () => {
   const [language, setLanguage] = useState('en');
   const [aliases, setAliases] = useState<any[]>([]);
   const [newAlias, setNewAlias] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -47,22 +46,6 @@ const Settings: React.FC = () => {
       console.error('Failed to update profile:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleChangePassword = async () => {
-    if (!newPassword || newPassword.length < 6) {
-      setMessage('Password must be at least 6 characters');
-      return;
-    }
-    try {
-      await settingsAPI.changePassword(currentPassword, newPassword);
-      setCurrentPassword('');
-      setNewPassword('');
-      setMessage('Password changed successfully!');
-      setTimeout(() => setMessage(''), 3000);
-    } catch (error: any) {
-      setMessage(error.response?.data?.error || 'Failed to change password');
     }
   };
 
@@ -114,8 +97,13 @@ const Settings: React.FC = () => {
       </aside>
 
       <main className="main-content">
-        <div className="settings-container">
-          <h2>Account Settings</h2>
+        <div className="settings-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button className="icon-btn" onClick={() => navigate('/')} style={{ color: 'var(--primary)' }}>
+            <ArrowLeft size={24} />
+          </button>
+          <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Account Settings</h2>
+        </div>
+        <div className="settings-container" style={{ padding: '24px 20px', paddingBottom: '120px' }}>
 
           {message && (
             <div className={`toast ${message.includes('success') ? 'success' : 'error'}`} style={{ position: 'relative', marginBottom: '20px' }}>
@@ -209,39 +197,6 @@ const Settings: React.FC = () => {
             </div>
           </section>
 
-          {/* Security Section */}
-          <section className="settings-section" id="security">
-            <h3>Security</h3>
-
-            <div className="settings-field" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Current Password</label>
-                <input
-                  type="password"
-                  className="settings-input"
-                  style={{ width: '100%' }}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password"
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>New Password</label>
-                <input
-                  type="password"
-                  className="settings-input"
-                  style={{ width: '100%' }}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password (min 6 chars)"
-                />
-              </div>
-              <button className="btn-secondary" onClick={handleChangePassword} style={{ alignSelf: 'flex-start' }}>
-                Change Password
-              </button>
-            </div>
-          </section>
-
           {/* Language Section */}
           <section className="settings-section" id="language">
             <h3>Language</h3>
@@ -280,6 +235,31 @@ const Settings: React.FC = () => {
           </section>
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="bottom-nav">
+        <div className="bottom-nav-item" onClick={() => navigate('/')}>
+          <Inbox size={24} />
+          <span>Inbox</span>
+        </div>
+        <div className="bottom-nav-item" onClick={() => navigate('/')}>
+          <Send size={24} />
+          <span>Sent</span>
+        </div>
+        <div className="bottom-nav-item compose-fab" onClick={() => navigate('/')}>
+          <div className="fab-inner">
+            <PenSquare size={24} color="white" />
+          </div>
+        </div>
+        <div className="bottom-nav-item" onClick={() => window.location.reload()}>
+          <RefreshCw size={24} />
+          <span>Refresh</span>
+        </div>
+        <div className="bottom-nav-item active">
+          <User size={24} />
+          <span>Profile</span>
+        </div>
+      </div>
     </div>
   );
 };

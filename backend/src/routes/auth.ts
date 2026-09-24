@@ -246,10 +246,6 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       }
     } else {
       // OTP-based login
-      if (!isTwilioConfigured()) {
-        res.status(400).json({ error: 'This account uses OTP login but Twilio is not configured' });
-        return;
-      }
       const sent = await sendOTP(phone);
       if (!sent) {
         res.status(500).json({ error: 'Failed to send OTP' });

@@ -6,7 +6,7 @@ import {
   Mail, Search, Inbox, Send, FileText, AlertTriangle, Trash2,
   Star, Paperclip, PenSquare, Settings, LogOut, Menu, RefreshCw,
   MoreVertical, Reply, Forward, Archive, ChevronDown, X, User,
-  Check, CheckCheck
+  Check, CheckCheck, CheckSquare
 } from 'lucide-react';
 
 interface Email {
@@ -38,6 +38,8 @@ const Home: React.FC = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Compose state
   const [composeTo, setComposeTo] = useState('');
@@ -46,8 +48,11 @@ const Home: React.FC = () => {
   const [composeBody, setComposeBody] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [replyToId, setReplyToId] = useState<string | null>(null);
+  const [composeError, setComposeError] = useState('');
 
   useEffect(() => {
+    setSelectedEmails(new Set());
+    setIsSelectionMode(false);
     fetchEmails();
     
     const intervalId = setInterval(async () => {
@@ -77,6 +82,47 @@ const Home: React.FC = () => {
     }
   };
 
+  const toggleEmailSelection = (id: string, e: React.MouseEvent | React.ChangeEvent) => {
+    e.stopPropagation();
+    const newSelection = new Set(selectedEmails);
+    if (newSelection.has(id)) newSelection.delete(id);
+    else newSelection.add(id);
+    setSelectedEmails(newSelection);
+  };
+
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    if (isSelectionMode) {
+      setSelectedEmails(new Set());
+    }
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedEmails(new Set(filteredEmails.map(em => em.id)));
+    } else {
+      setSelectedEmails(new Set());
+    }
+  };
+
+  const handleBulkTrash = async () => {
+    if (selectedEmails.size === 0) return;
+    try {
+      setIsLoading(true);
+      const ids = Array.from(selectedEmails);
+      if (folder === 'trash') {
+        await Promise.all(ids.map(id => emailAPI.deleteEmail(id)));
+      } else {
+        await Promise.all(ids.map(id => emailAPI.updateEmail(id, { isTrash: true })));
+      }
+      setSelectedEmails(new Set());
+      fetchEmails();
+    } catch (error) {
+      console.error('Bulk action failed', error);
+      setIsLoading(false);
+    }
+  };
+
   const handleSendEmail = async () => {
     if (!composeTo.trim()) return;
 
@@ -99,9 +145,10 @@ const Home: React.FC = () => {
       setComposeSubject('');
       setComposeBody('');
       setReplyToId(null);
+      setComposeError('');
       fetchEmails();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to send email');
+      setComposeError(error.response?.data?.error || 'Failed to send email');
     } finally {
       setIsSending(false);
     }
@@ -112,6 +159,16 @@ const Home: React.FC = () => {
     setComposeTo(email.sender_email);
     setComposeSubject(`Re: ${email.subject}`);
     setComposeBody(`\n\n--- Original Message ---\nFrom: ${email.sender_name || email.sender_email}\nDate: ${formatDate(email.created_at)}\n\n${email.body}`);
+    setComposeError('');
+    setIsComposing(true);
+  };
+
+  const handleForward = (email: Email) => {
+    setReplyToId(null);
+    setComposeTo('');
+    setComposeSubject(`Fwd: ${email.subject}`);
+    setComposeBody(`\n\n--- Forwarded Message ---\nFrom: ${email.sender_name || email.sender_email}\nDate: ${formatDate(email.created_at)}\n\n${email.body}`);
+    setComposeError('');
     setIsComposing(true);
   };
 
@@ -132,11 +189,15 @@ const Home: React.FC = () => {
 
   const handleMoveToTrash = async (email: Email) => {
     try {
-      await emailAPI.updateEmail(email.id, { isTrash: true });
+      if (folder === 'trash') {
+        await emailAPI.deleteEmail(email.id);
+      } else {
+        await emailAPI.updateEmail(email.id, { isTrash: true });
+      }
       setSelectedEmail(null);
       fetchEmails();
     } catch (error) {
-      console.error('Failed to trash email:', error);
+      console.error('Failed to trash/delete email:', error);
     }
   };
 
@@ -269,6 +330,14 @@ const Home: React.FC = () => {
             />
           </div>
           <div className="header-actions">
+            <button 
+              className={`icon-btn ${isSelectionMode ? 'active' : ''}`} 
+              onClick={toggleSelectionMode} 
+              title="Select Multiple"
+              style={{ background: isSelectionMode ? 'var(--primary-color)' : 'transparent', color: isSelectionMode ? 'white' : 'inherit' }}
+            >
+              <CheckSquare size={18} />
+            </button>
             <button className="icon-btn" onClick={fetchEmails} title="Refresh">
               <RefreshCw size={18} />
             </button>
@@ -293,6 +362,26 @@ const Home: React.FC = () => {
         <div className="email-list-container">
           {/* Email List */}
           <div className="email-list">
+            {isSelectionMode && filteredEmails.length > 0 && (
+              <div className="bulk-actions-bar" style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={selectedEmails.size > 0 && selectedEmails.size === filteredEmails.length}
+                  onChange={handleSelectAll}
+                  style={{ marginRight: '16px', transform: 'scale(1.2)' }}
+                />
+                {selectedEmails.size > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{selectedEmails.size} selected</span>
+                    <button className="icon-btn" onClick={handleBulkTrash} title="Delete selected">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Select all</span>
+                )}
+              </div>
+            )}
             {isLoading ? (
               <div className="empty-state">
                 <div className="loading-spinner" />
@@ -309,7 +398,11 @@ const Home: React.FC = () => {
                 <div
                   key={email.id}
                   className={`email-item ${selectedEmail?.id === email.id ? 'active' : ''} ${!email.is_read ? 'unread' : ''}`}
-                  onClick={() => {
+                  onClick={(e) => {
+                    if (isSelectionMode) {
+                      toggleEmailSelection(email.id, e);
+                      return;
+                    }
                     if (!email.is_read) {
                       emailAPI.markAsRead(email.id).catch(console.error);
                       setEmails(prev => prev.map(e => e.id === email.id ? { ...e, is_read: true } : e));
@@ -319,12 +412,28 @@ const Home: React.FC = () => {
                     }
                   }}
                 >
+                  {isSelectionMode && (
+                    <div style={{ marginRight: '12px', display: 'flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedEmails.has(email.id)}
+                        onChange={(e) => toggleEmailSelection(email.id, e)}
+                        style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
+                      />
+                    </div>
+                  )}
                   <div className="email-avatar">
-                    {getInitials(email.sender_name, email.sender_email)}
+                    {folder === 'sent' 
+                      ? getInitials('', email.recipients?.[0]?.recipient_email || 'Unknown')
+                      : getInitials(email.sender_name, email.sender_email)}
                   </div>
                   <div className="email-content">
                     <div className="email-top-row">
-                      <span className="email-sender">{email.sender_name || email.sender_email}</span>
+                      <span className="email-sender">
+                        {folder === 'sent' 
+                          ? `To: ${email.recipients?.[0]?.recipient_email || 'Unknown'}`
+                          : (email.sender_name || email.sender_email)}
+                      </span>
                       <span className="email-time">{formatDate(email.created_at)}</span>
                     </div>
                     <div className="email-subject">{email.subject || '(No Subject)'}</div>
@@ -363,86 +472,97 @@ const Home: React.FC = () => {
           {/* Email View */}
           <div className={`email-view ${selectedEmail ? 'mobile-visible' : ''}`}>
             {selectedEmail ? (
-              <div className="fade-in">
-                <div className="email-view-header">
-                  <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                      <button className="mobile-back-btn" onClick={() => setSelectedEmail(null)}>
-                        ← Back
-                      </button>
-                      <h2 className="email-view-subject">{selectedEmail.subject || '(No Subject)'}</h2>
-                    </div>
+              <div className="email-view-inner fade-in">
+                {/* Modern App Header */}
+                <div className="email-view-topbar">
+                  <div className="topbar-left">
+                    <button className="icon-btn mobile-back-btn" onClick={() => setSelectedEmail(null)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
                     <div className="email-view-actions">
-                      <button className="icon-btn" onClick={() => handleReply(selectedEmail)} title="Reply">
-                        <Reply size={18} />
-                      </button>
                       <button className="icon-btn" onClick={() => handleMoveToTrash(selectedEmail)} title="Delete">
-                        <Trash2 size={18} />
+                        <Trash2 size={20} />
                       </button>
                       <button className="icon-btn" onClick={(e) => handleToggleFavorite(selectedEmail, e)} title="Star">
                         <Star
-                          size={18}
+                          size={20}
                           fill={selectedEmail.is_favorite ? '#f59e0b' : 'none'}
                           color={selectedEmail.is_favorite ? '#f59e0b' : 'currentColor'}
                         />
                       </button>
+                      <button className="icon-btn" title="More">
+                        <MoreVertical size={20} />
+                      </button>
                     </div>
                   </div>
+                </div>
 
+                {/* Email Content Scrollable Area */}
+                <div className="email-view-scroll-content">
+                  <h1 className="email-view-subject">{selectedEmail.subject || '(No Subject)'}</h1>
+                  
                   <div className="email-view-meta">
                     <div className="email-view-sender-avatar">
                       {getInitials(selectedEmail.sender_name, selectedEmail.sender_email)}
                     </div>
                     <div className="email-view-sender-info">
-                      <div className="email-view-sender-name">
-                        {selectedEmail.sender_name || selectedEmail.sender_email}
+                      <div className="sender-row-main">
+                        <span className="email-view-sender-name">
+                          {selectedEmail.sender_name || selectedEmail.sender_email}
+                        </span>
+                        <span className="email-view-date">
+                          {formatDate(selectedEmail.created_at)}
+                        </span>
                       </div>
-                      <div className="email-view-sender-email">
-                        {selectedEmail.sender_email}
-                        {selectedEmail.recipients && selectedEmail.recipients.length > 0 && (
-                          <span> → {selectedEmail.recipients.map((r) => r.recipient_email).join(', ')}</span>
-                        )}
+                      <div className="sender-row-sub">
+                        <span className="email-view-sender-email">
+                          {folder === 'sent' 
+                            ? `to ${selectedEmail.recipients?.map(r => r.recipient_email).join(', ') || 'unknown'}`
+                            : 'to me'}
+                        </span>
+                        <ChevronDown size={14} style={{ color: 'var(--text-tertiary)', marginLeft: '4px' }} />
                       </div>
                     </div>
-                    <div className="email-view-date">
-                      {new Date(selectedEmail.created_at).toLocaleString()}
+                  </div>
+
+                  <div className="email-view-body">
+                    {selectedEmail.html_body && selectedEmail.html_body !== selectedEmail.body ? (
+                      <div dangerouslySetInnerHTML={{ __html: selectedEmail.html_body }} />
+                    ) : (
+                      <div className="plaintext-body">{selectedEmail.body}</div>
+                    )}
+                  </div>
+
+                  {/* Smart Replies */}
+                  <div className="smart-replies-container">
+                    <div className="smart-replies-label">Suggested replies</div>
+                    <div className="quick-replies">
+                      {['Thanks!', 'Sounds good.', "I'll check this.", "Got it."].map((reply, i) => (
+                        <button
+                          key={i}
+                          className="smart-reply-chip"
+                          onClick={() => {
+                            setReplyToId(selectedEmail.id);
+                            setComposeTo(selectedEmail.sender_email);
+                            setComposeSubject(`Re: ${selectedEmail.subject}`);
+                            setComposeBody(`${reply}\n\n--- Original Message ---\nFrom: ${selectedEmail.sender_name || selectedEmail.sender_email}\nDate: ${formatDate(selectedEmail.created_at)}\n\n${selectedEmail.body}`);
+                            setIsComposing(true);
+                          }}
+                        >
+                          {reply}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="email-view-body" style={{ whiteSpace: 'pre-wrap' }}>
-                  {selectedEmail.html_body ? (
-                    <div dangerouslySetInnerHTML={{ __html: selectedEmail.html_body }} />
-                  ) : (
-                    <div>{selectedEmail.body}</div>
-                  )}
-                </div>
-
-                <div className="quick-replies" style={{ display: 'flex', gap: '8px', margin: '20px 0', flexWrap: 'wrap' }}>
-                  {['Thanks!', 'Sounds good.', "I'll check this.", "Got it."].map((reply, i) => (
-                    <button
-                      key={i}
-                      className="filter-chip"
-                      style={{ background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '6px 12px', fontSize: '13px', cursor: 'pointer', color: 'var(--text-secondary)' }}
-                      onClick={() => {
-                        setReplyToId(selectedEmail.id);
-                        setComposeTo(selectedEmail.sender_email);
-                        setComposeSubject(`Re: ${selectedEmail.subject}`);
-                        setComposeBody(`${reply}\n\n--- Original Message ---\nFrom: ${selectedEmail.sender_name || selectedEmail.sender_email}\nDate: ${formatDate(selectedEmail.created_at)}\n\n${selectedEmail.body}`);
-                        setIsComposing(true);
-                      }}
-                    >
-                      {reply}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="email-reply-bar">
-                  <button className="reply-btn" onClick={() => handleReply(selectedEmail)}>
-                    <Reply size={16} /> Reply
+                {/* Fixed Reply Bar at Bottom */}
+                <div className="email-reply-bar-fixed">
+                  <button className="reply-btn primary" onClick={() => handleReply(selectedEmail)}>
+                    <Reply size={18} /> Reply
                   </button>
-                  <button className="reply-btn">
-                    <Forward size={16} /> Forward
+                  <button className="reply-btn secondary" onClick={() => handleForward(selectedEmail)}>
+                    <Forward size={18} /> Forward
                   </button>
                 </div>
               </div>
@@ -469,6 +589,12 @@ const Home: React.FC = () => {
             </div>
 
             <div className="compose-fields">
+              {composeError && (
+                <div className="compose-error">
+                  <AlertTriangle size={16} />
+                  <span>{composeError}</span>
+                </div>
+              )}
               <div className="compose-field">
                 <label>To</label>
                 <input
@@ -540,7 +666,8 @@ const Home: React.FC = () => {
       )}
 
       {/* Mobile Bottom Navigation */}
-      <div className="bottom-nav">
+      {!selectedEmail && (
+        <div className="bottom-nav">
         <div className={`bottom-nav-item ${folder === 'inbox' ? 'active' : ''}`} onClick={() => { setFolder('inbox'); setSelectedEmail(null); }}>
           <Inbox size={24} />
           <span>Inbox</span>
@@ -563,6 +690,7 @@ const Home: React.FC = () => {
           <span>Profile</span>
         </div>
       </div>
+      )}
     </div>
   );
 };
