@@ -163,17 +163,11 @@ input, textarea {
 .auth-card {
   position: relative;
   width: 100%;
-  max-width: 420px;
-  min-height: 580px;
-  max-height: 90vh;
+  height: 100dvh; /* Use dynamic viewport height for mobile browsers */
   display: flex;
   flex-direction: column;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 40px;
-  backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-lg);
+  padding: 24px;
   overflow: hidden;
 }
 
@@ -182,11 +176,17 @@ input, textarea {
 ------------------------------------- */
 @media (min-width: 769px) {
   .auth-card {
+    height: auto;
     max-width: 900px;
     min-height: 600px;
+    max-height: 90vh;
     flex-direction: row;
     padding: 0 !important;
     background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(20px);
   }
 
   .auth-logo {
