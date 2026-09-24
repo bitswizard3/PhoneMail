@@ -271,7 +271,7 @@ const Auth: React.FC = () => {
             </form>
           </div>
         ) : (
-          <>
+          <div className="onboarding-step fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <p className="auth-subtitle" style={{ marginBottom: '4px' }}>
               <Shield size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
               Enter the 6-digit code sent to
@@ -358,7 +358,7 @@ const Auth: React.FC = () => {
                 Need Help?
               </button>
             </form>
-          </>
+          </div>
         )}
       </div>
 
