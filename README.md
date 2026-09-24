@@ -44,8 +44,8 @@ We built the web interface from the ground up using React and Vite, focusing on 
 - **Alias Management**: Want privacy? Users can generate unlimited aliases (e.g., `work@phonemail.local`) that securely map back to their phone number.
 - **External SMTP Relay**: Sending an email to an external address (like `@gmail.com` or `@yahoo.com`)? Our backend automatically detects the domain and routes it through a secure SMTP relay to the real internet!
 
-### 📱 2. The Mobile Experience (WhatsApp Reborn)
-Email on mobile often feels clunky. We redesigned the mobile interface to feel like an Instant Messenger.
+### 📱 2. The Mobile Experience (Responsive Web App)
+Email on mobile often feels clunky. We redesigned our web application to dynamically transform into a native-feeling Instant Messenger when accessed on a phone. No app installation required!
 - **Conversational Threads**: Emails from the same person are grouped into chat bubbles.
 - **Swipe-to-Delete Gestures**: We implemented native-feeling touch gestures. Just swipe left on any email thread to instantly move it to trash.
 - **Read Receipts**: Inspired by WhatsApp, we added Blue Ticks (✓✓). You will know exactly when the recipient opens your email.
@@ -64,7 +64,7 @@ PhoneMail is designed using a robust, decoupled architecture suitable for cloud-
 
 ```mermaid
 graph TD
-    Client(Web/Mobile Client) --> API[Node.js Express API]
+    Client[Responsive Web Client] --> API[Node.js Express API]
     API --> PG[(PostgreSQL 16)]
     API --> Cache[(Redis 7)]
     API --> SMTP[Custom SMTP Relay]
@@ -75,7 +75,7 @@ graph TD
 
 | Component | Technology Used | Rationale |
 |-----------|----------------|-----------|
-| **Frontend** | React, Vite, TS | Vite provides lightning-fast HMR. TypeScript ensures zero runtime type errors. |
+| **Frontend** | React, Vite, TS | Vite provides lightning-fast HMR. The UI is fully responsive, acting as both Desktop & Mobile app. |
 | **Styling** | Vanilla CSS | Pure, zero-dependency styling. No bloated UI libraries. Total control over micro-animations. |
 | **Backend** | Node.js, Express | Highly scalable and event-driven API capable of handling thousands of concurrent requests. |
 | **Database** | PostgreSQL 16 | Relational data integrity for emails, users, and complex joins (conversations). |
