@@ -104,8 +104,11 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Check if user already exists
-    const existingUser = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const email = `${cleanPhone.slice(-10)}@${SMTP_DOMAIN}`;
+
+    // Check if user already exists using the normalized email
+    const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
     if (existingUser.rows.length > 0) {
       // Existing user — login
@@ -132,9 +135,6 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
     }
 
     // New user — auto-create account
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const email = `${cleanPhone.slice(-10)}@${SMTP_DOMAIN}`;
-
     // Check which method was stored, default to 'web'
     const pendingData = await redis.get(`pending_reg:${phone}`);
     const method = pendingData ? JSON.parse(pendingData).method || 'web' : 'web';
