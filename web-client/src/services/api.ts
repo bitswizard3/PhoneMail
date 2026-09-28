@@ -1,6 +1,34 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+/**
+ * Auto-detect API URL based on current browser location.
+ * This solves the problem where a hardcoded IP in .env fails on
+ * different networks (MacBook, phone, different WiFi, etc.)
+ * 
+ * Logic:
+ * - If VITE_API_URL is set and NOT a specific LAN IP, use it.
+ * - Otherwise, dynamically construct the API URL using the browser's
+ *   current hostname (works for localhost AND LAN IP access).
+ */
+const getApiUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  
+  // If env URL is set and is a proper external URL (not a LAN IP), use it
+  if (envUrl && !envUrl.match(/^https?:\/\/192\.168\./)) {
+    return envUrl;
+  }
+  
+  // Auto-detect: use whatever hostname the browser is currently on
+  // If you're on localhost:5173, API is localhost:4000
+  // If you're on 192.168.x.x:5173, API is 192.168.x.x:4000
+  const currentHost = window.location.hostname;
+  const apiPort = 4000;
+  const protocol = window.location.protocol;
+  
+  return `${protocol}//${currentHost}:${apiPort}/api`;
+};
+
+const API_URL = getApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -41,6 +69,8 @@ export const authAPI = {
     api.post('/auth/send-otp', { phone, method: 'web' }),
   verifyOTP: (phone: string, code: string) =>
     api.post('/auth/verify-otp', { phone, code }),
+  initiateCall: (phone: string, baseUrl: string) =>
+    api.post('/voice/initiate-call', { phone, baseUrl }),
   getMe: () => api.get('/auth/me'),
 };
 

@@ -1,4 +1,5 @@
 import twilio from 'twilio';
+import redis from '../config/redis';
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -6,6 +7,33 @@ const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
 let client: twilio.Twilio | null = null;
+
+/**
+ * Normalize any phone number to E.164 format (+91XXXXXXXXXX)
+ * This MUST be used everywhere to ensure Twilio send and verify
+ * use the exact same phone string.
+ */
+export const normalizePhone = (phone: string): string => {
+  // Strip everything except digits and leading +
+  let cleaned = phone.replace(/[^0-9+]/g, '');
+  
+  // If it's a 10-digit Indian number without country code
+  if (/^\d{10}$/.test(cleaned)) {
+    cleaned = '+91' + cleaned;
+  }
+  
+  // If it starts with 91 and is 12 digits (missing +)
+  if (/^91\d{10}$/.test(cleaned)) {
+    cleaned = '+' + cleaned;
+  }
+  
+  // Ensure it starts with +
+  if (!cleaned.startsWith('+')) {
+    cleaned = '+' + cleaned;
+  }
+  
+  return cleaned;
+};
 
 export const isTwilioConfigured = (): boolean => {
   return !!(accountSid && authToken && accountSid !== 'your_twilio_account_sid');
@@ -22,66 +50,61 @@ const getClient = (): twilio.Twilio => {
 };
 
 /**
- * Send OTP via Twilio Verify
+ * Send OTP via Twilio Programmable Messaging (bypasses Verify API limit)
  */
 export const sendOTP = async (phone: string): Promise<boolean> => {
-  let toPhone = phone;
-  if (toPhone.length === 10 && !toPhone.startsWith('+')) {
-    toPhone = '+91' + toPhone;
-  }
+  const toPhone = normalizePhone(phone);
+  
+  // Generate a random 6-digit OTP
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  if (!isTwilioConfigured() || !verifyServiceSid) {
-    console.log(`📱 [MOCK OTP] OTP sent to ${toPhone}: 123456`);
+  // Store in memory for 10 minutes
+  await redis.setex(`otp:${toPhone}`, 600, otpCode);
+
+  if (!isTwilioConfigured() || !twilioPhone) {
+    console.log(`📱 [MOCK OTP] OTP sent to ${toPhone}: ${otpCode} (or use 123456)`);
     return true;
   }
 
   try {
     const twilioClient = getClient();
-    await twilioClient.verify.v2
-      .services(verifyServiceSid!)
-      .verifications.create({
-        to: toPhone,
-        channel: 'sms',
-      });
-    console.log(`📱 Twilio OTP sent to ${toPhone}`);
+    await twilioClient.messages.create({
+      body: `Your PhoneMail verification code is: ${otpCode}`,
+      from: twilioPhone,
+      to: toPhone,
+    });
+    console.log(`📱 Twilio SMS OTP sent to ${toPhone}`);
     return true;
   } catch (error: any) {
-    console.error('❌ Failed to send Twilio OTP:', error.message);
-    console.log(`📱 [MOCK OTP FALLBACK] OTP for ${phone}: 123456`);
-    return true; // Fallback to mock OTP so the demo doesn't get blocked
+    console.error('❌ Failed to send Twilio SMS OTP:', error.message);
+    console.log(`📱 [MOCK OTP FALLBACK] OTP for ${toPhone}: ${otpCode} (or use 123456)`);
+    return true; // Don't block the UI, allow them to use 123456
   }
 };
 
 /**
- * Verify OTP via Twilio Verify
+ * Verify OTP via in-memory store
  */
 export const verifyOTP = async (phone: string, code: string): Promise<boolean> => {
-  if (!isTwilioConfigured() || !verifyServiceSid) {
-    console.log(`📱 [MOCK VERIFY] Verifying OTP for ${phone}: ${code}`);
-    return code === '123456';
-  }
+  const normalizedPhone = normalizePhone(phone);
 
-  // Universal Fallback for Demo/Trial accounts:
-  // Since sendOTP falls back to 123456 for unverified numbers on Trial accounts,
-  // we must unconditionally allow 123456 to pass verification, otherwise the demo gets blocked.
+  // Always accept the demo fallback code
   if (code === '123456') {
-    console.log(`📱 [MOCK VERIFY] Accepted fallback code 123456 for ${phone}`);
+    console.log(`📱 [VERIFY] Accepted fallback code 123456 for ${normalizedPhone}`);
     return true;
   }
 
-  try {
-    const twilioClient = getClient();
-    const verification = await twilioClient.verify.v2
-      .services(verifyServiceSid!)
-      .verificationChecks.create({
-        to: phone,
-        code: code,
-      });
-    return verification.status === 'approved';
-  } catch (error: any) {
-    console.error('❌ Failed to verify Twilio OTP:', error.message);
-    return false;
+  const storedCode = await redis.get(`otp:${normalizedPhone}`);
+  
+  if (storedCode && storedCode === code) {
+    // Clear code after successful use
+    await redis.del(`otp:${normalizedPhone}`);
+    console.log(`📱 [VERIFY] OTP code verified for ${normalizedPhone}`);
+    return true;
   }
+  
+  console.log(`📱 [VERIFY] Failed verification for ${normalizedPhone}. Provided: ${code}, Stored: ${storedCode}`);
+  return false;
 };
 
 /**
@@ -92,38 +115,25 @@ export const sendEmailNotification = async (
   senderName: string,
   subject: string
 ): Promise<boolean> => {
+  const normalizedPhone = normalizePhone(toPhone);
+
   if (!isTwilioConfigured() || !twilioPhone) {
-    console.log(`📩 [MOCK SMS] To: ${toPhone} | From: ${senderName} | Subject: ${subject}`);
+    console.log(`📩 [MOCK SMS] To: ${normalizedPhone} | From: ${senderName} | Subject: ${subject}`);
     return true;
   }
 
   try {
     const twilioClient = getClient();
-    // Using a safe template string because Twilio Trial blocks custom SMS bodies to some countries
-    // But since the user verified their number, this template (or close to it) should pass if required.
-    // The user successfully sent "sms_appointment_reminders", but we can try normal text since it's a verified number.
     await twilioClient.messages.create({
       body: `You received an email from ${senderName} on PhoneMail.`,
       from: twilioPhone,
-      to: toPhone,
+      to: normalizedPhone,
     });
-    console.log(`📩 SMS notification sent to ${toPhone}`);
+    console.log(`📩 SMS notification sent to ${normalizedPhone}`);
     return true;
   } catch (error: any) {
     console.error('❌ Failed to send SMS notification:', error.message);
-    // If custom text fails due to trial template rules, we fallback to the exact template they tested:
-    try {
-      const twilioClient = getClient();
-      await twilioClient.messages.create({
-        body: `sms_appointment_reminders`,
-        from: twilioPhone,
-        to: toPhone,
-      });
-      console.log(`📩 SMS notification sent to ${toPhone} (using fallback template)`);
-      return true;
-    } catch(fallbackError) {
-       return false;
-    }
+    return false;
   }
 };
 
@@ -140,9 +150,45 @@ export const generateIVRResponse = (accountCreated: boolean): string => {
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather numDigits="1" action="/api/auth/ivr-confirm" method="POST">
+  <Gather numDigits="1" action="/api/voice/ivr-confirm" method="POST">
     <Say voice="alice">Welcome to PhoneMail. Press 1 to create your PhoneMail account, or press 2 to exit.</Say>
   </Gather>
   <Say voice="alice">We didn't receive any input. Goodbye!</Say>
 </Response>`;
 };
+
+/**
+ * Initiate an outbound IVR call to the user.
+ * 
+ * Twilio trial accounts BLOCK the 'twiml' parameter.
+ * They only allow the 'url' parameter pointing to a public HTTPS endpoint.
+ * We use a localtunnel to expose our local /api/voice/twiml endpoint.
+ */
+export const initiateOutboundCall = async (phone: string, publicBaseUrl: string): Promise<boolean> => {
+  const toPhone = normalizePhone(phone);
+  
+  if (!isTwilioConfigured() || !twilioPhone) {
+    console.log(`📞 [MOCK CALL] Outbound call initiated to ${toPhone}`);
+    return true;
+  }
+
+  // Use our tunnel URL to serve custom TwiML with Gather (press 1/2)
+  const tunnelUrl = process.env.TUNNEL_URL || 'https://cause-hour-oclc-employ.trycloudflare.com';
+  const twimlUrl = `${tunnelUrl}/api/voice/twiml`;
+
+  try {
+    const twilioClient = getClient();
+    await twilioClient.calls.create({
+      url: twimlUrl,
+      to: toPhone,
+      from: twilioPhone
+    });
+    console.log(`📞 Outbound call successfully initiated to ${toPhone} (TwiML: ${twimlUrl})`);
+    return true;
+  } catch (error: any) {
+    console.error('❌ Failed to initiate outbound call:', error.message);
+    return false;
+  }
+};
+
+

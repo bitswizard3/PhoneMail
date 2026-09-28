@@ -59,7 +59,7 @@ const IVRDemo: React.FC = () => {
   };
 
   return (
-    <div className="auth-container" style={{ minHeight: '100vh' }}>
+    <div className="auth-container" style={{ minHeight: '100dvh' }}>
       <div className="auth-card fade-in" style={{ maxWidth: '440px' }}>
         <div className="auth-logo">
           <div className="auth-logo-icon" style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}>
