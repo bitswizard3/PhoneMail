@@ -46,16 +46,8 @@ const getClient = (): twilio.Twilio => {
   if (!client) {
     throw new Error('Twilio is not configured');
   }
-  return client;
-};
-
-import axios from 'axios';
-
-const FAST2SMS_API_KEY = process.env.FAST2SMS_API_KEY;
-
 export const sendOTP = async (phone: string): Promise<boolean> => {
   const toPhone = normalizePhone(phone);
-  const numericPhone = toPhone.replace('+91', '').replace('+', ''); // Fast2SMS prefers 10 digit numbers
 
   // Generate 6 digit OTP
   const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -63,28 +55,25 @@ export const sendOTP = async (phone: string): Promise<boolean> => {
   // Store in memory/redis for 5 minutes
   await redis.setex(`otp:${toPhone}`, 300, otpCode);
 
-  if (!FAST2SMS_API_KEY) {
+  if (!isTwilioConfigured() || !twilioPhone) {
     console.log(`📱 [MOCK OTP] OTP sent to ${toPhone}: ${otpCode}`);
     return true;
   }
 
   try {
+    const twilioClient = getClient();
     const message = `Your PhoneMail code is ${otpCode}.\n\n@phonemail.app #${otpCode}`;
     
-    await axios.get('https://www.fast2sms.com/dev/bulkV2', {
-      params: {
-        authorization: FAST2SMS_API_KEY,
-        route: 'q',
-        message: message,
-        flash: 0,
-        numbers: numericPhone
-      }
+    await twilioClient.messages.create({
+      body: message,
+      from: twilioPhone,
+      to: toPhone,
     });
       
-    console.log(`📱 Fast2SMS OTP sent to ${toPhone}`);
+    console.log(`📱 Twilio Programmable SMS OTP sent to ${toPhone}`);
     return true;
   } catch (error: any) {
-    console.error('❌ Failed to send Fast2SMS OTP:', error.response?.data || error.message);
+    console.error('❌ Failed to send Twilio SMS OTP:', error.message);
     console.log(`📱 [MOCK OTP FALLBACK] Use ${otpCode} for ${toPhone}`);
     return true; 
   }
