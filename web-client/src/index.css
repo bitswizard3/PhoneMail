@@ -1702,7 +1702,7 @@ input, textarea {
   
   
   .app-layout {
-    padding-bottom: 70px; /* Space for bottom nav */
+    /* Padding removed */
   }
 }
 

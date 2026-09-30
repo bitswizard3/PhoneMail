@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { emailAPI } from '../services/api';
 import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X, User, Trash2, Search, HelpCircle, Info, Forward, Edit2 } from 'lucide-react';
 import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { Contacts } from '@capacitor-community/contacts';
 
 interface Email {
   id: string;
@@ -381,17 +383,24 @@ const Home: React.FC = () => {
   };
 
   const handlePickContact = async () => {
-    if ('contacts' in navigator && 'ContactsManager' in window) {
-      try {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const result = await Contacts.pickContact({
+          projection: { name: true, phones: true }
+        });
+        if (result.contact && result.contact.phones && result.contact.phones.length > 0) {
+          setNewChatInput(result.contact.phones[0].number?.replace(/[^0-9+]/g, '') || '');
+        }
+      } else if ('contacts' in navigator && 'ContactsManager' in window) {
         const contacts = await (navigator as any).contacts.select(['name', 'tel'], { multiple: false });
         if (contacts.length > 0 && contacts[0].tel.length > 0) {
           setNewChatInput(contacts[0].tel[0].replace(/[^0-9+]/g, ''));
         }
-      } catch (ex) {
-        console.error(ex);
+      } else {
+        alert('Contact picking is only supported on Chrome Android or native app. Please type manually.');
       }
-    } else {
-      alert('Contact picking is only supported on Chrome Android. Please type manually.');
+    } catch (ex) {
+      console.error(ex);
     }
   };
 
@@ -596,7 +605,7 @@ const Home: React.FC = () => {
                 style={{ position: 'relative' }}
               >
                 {isThreadSelectMode && (
-                   <div style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 5, width: '20px', height: '20px', borderRadius: '50%', background: selectedThreads.has(thread.contactEmail) ? 'var(--primary)' : 'transparent', border: selectedThreads.has(thread.contactEmail) ? 'none' : '2px solid gray', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                   <div style={{ position: 'absolute', bottom: '12px', left: '44px', zIndex: 5, width: '20px', height: '20px', borderRadius: '50%', background: selectedThreads.has(thread.contactEmail) ? 'var(--primary)' : 'var(--bg-elevated)', border: selectedThreads.has(thread.contactEmail) ? 'none' : '2px solid gray', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                      {selectedThreads.has(thread.contactEmail) && <Check size={14} color="black" />}
                    </div>
                 )}
