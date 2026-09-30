@@ -95,7 +95,7 @@ const Auth: React.FC = () => {
       navigator.credentials.get({
         otp: { transport: ['sms'] },
         signal: abortController.signal
-      }).then((otpObj: any) => {
+      } as any).then((otpObj: any) => {
         if (otpObj && otpObj.code) {
            setOtp(otpObj.code);
         }

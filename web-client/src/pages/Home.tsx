@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { emailAPI } from '../services/api';
-import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X, User, Trash2 } from 'lucide-react';
+import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X, User, Trash2, Search, HelpCircle, Info } from 'lucide-react';
 import { App } from '@capacitor/app';
 
 interface Email {
@@ -62,6 +62,9 @@ const Home: React.FC = () => {
   const [showNewChat, setShowNewChat] = useState(false);
   const [newChatInput, setNewChatInput] = useState('');
   const [newChatError, setNewChatError] = useState('');
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -256,6 +259,11 @@ const Home: React.FC = () => {
     document.documentElement.style.setProperty('--primary', color);
   };
 
+  const filteredThreads = threads.filter(t => 
+    t.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.contactEmail.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className={`hybrid-layout ${activeThread ? 'chat-active' : ''}`}>
       
@@ -266,15 +274,26 @@ const Home: React.FC = () => {
             <div className="sidebar-header">
               <div className="sidebar-avatar">{getInitials(user?.email || '')}</div>
               <div className="sidebar-user-info">
-                <h3>{user?.email}</h3>
+                <h3>{(user?.email || '').split('@')[0]}</h3>
                 <p>{user?.email}</p>
               </div>
-              <button className="icon-btn" onClick={() => setIsMenuOpen(false)}>
-                <X size={24} />
+              <button className="icon-btn" onClick={() => setIsMenuOpen(false)} style={{ background: 'transparent', border: 'none' }}>
+                <X size={24} color="white" />
               </button>
             </div>
             
             <div className="sidebar-content">
+              {/* Profile Section */}
+              <div className="sidebar-section">
+                <button className="sidebar-btn" onClick={() => { setIsMenuOpen(false); navigate('/settings'); }}>
+                  <User size={20} color="var(--primary)" /> My Profile
+                </button>
+                <button className="sidebar-btn" onClick={() => { setIsMenuOpen(false); setSearchQuery(''); }}>
+                  <Search size={20} color="var(--primary)" /> Search Chats
+                </button>
+              </div>
+
+              {/* Theme Section */}
               <div className="sidebar-section">
                 <h4><Palette size={16} /> Theme Color</h4>
                 <div className="theme-picker">
@@ -290,10 +309,20 @@ const Home: React.FC = () => {
                 </div>
               </div>
 
-              <div className="sidebar-actions">
+              {/* Menu Options */}
+              <div className="sidebar-section">
                 <button className="sidebar-btn" onClick={() => { setIsMenuOpen(false); navigate('/settings'); }}>
-                  <Settings size={20} /> Account Settings
+                  <Settings size={20} color="var(--primary)" /> Settings
                 </button>
+                <button className="sidebar-btn" onClick={() => alert('PhoneMail v1.0\nBuilt for Hackathon 🚀\nYour phone is your email!')}>
+                  <Info size={20} color="var(--primary)" /> About PhoneMail
+                </button>
+                <button className="sidebar-btn" onClick={() => alert('Need help? Contact support@phonemail.app')}>
+                  <HelpCircle size={20} color="var(--primary)" /> Help & FAQ
+                </button>
+              </div>
+
+              <div className="sidebar-actions">
                 <button className="sidebar-btn logout-btn" onClick={() => { logout(); navigate('/login'); }}>
                   <LogOut size={20} /> Logout
                 </button>
@@ -313,25 +342,38 @@ const Home: React.FC = () => {
             <h2 style={{ margin: 0 }}>Chats</h2>
           </div>
           <div className="header-actions">
-            <button className="icon-btn" onClick={() => navigate('/settings')} title="Settings">
-              <Settings size={20} />
-            </button>
-            <button className="icon-btn" onClick={() => { logout(); navigate('/login'); }} title="Logout">
-              <LogOut size={20} />
-            </button>
             <button className="icon-btn" onClick={() => setIsMenuOpen(true)} title="Profile">
               <div className="sidebar-avatar-small">{getInitials(user?.email || '')}</div>
             </button>
           </div>
         </div>
+
+        {/* Search Bar */}
+        <div style={{ padding: '4px 12px', background: 'var(--bg-secondary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-elevated)', borderRadius: '24px', padding: '6px 14px' }}>
+            <Search size={16} color="var(--text-tertiary)" />
+            <input 
+              type="text" 
+              placeholder="Search chats..." 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+                <X size={14} color="var(--text-tertiary)" />
+              </button>
+            )}
+          </div>
+        </div>
         
         <div className="thread-list-scroll">
-          {threads.length === 0 ? (
+          {filteredThreads.length === 0 ? (
             <div className="empty-room" style={{ height: '100%', padding: '20px', textAlign: 'center' }}>
-              <p>No messages yet. Start a chat by tapping the + button.</p>
+              <p>{searchQuery ? 'No chats found.' : 'No messages yet. Start a chat by tapping the + button.'}</p>
             </div>
           ) : (
-            threads.map((thread) => (
+            filteredThreads.map((thread) => (
               <div 
                 key={thread.contactEmail} 
                 className={`thread-item ${activeThread?.contactEmail === thread.contactEmail ? 'active' : ''}`}
