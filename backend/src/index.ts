@@ -21,25 +21,7 @@ const PORT = process.env.PORT || process.env.BACKEND_PORT || 4000;
 // devices on the same WiFi can reach the API (fixes the "works on
 // desktop but not on mobile" problem).
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-
-    // In production you'd whitelist specific domains; in dev allow everything
-    if (process.env.NODE_ENV === 'production') {
-      const allowedOrigins = [
-        'https://phonemail.local',
-        // add your production domain here
-      ];
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'));
-    }
-
-    // Development: allow ALL origins (localhost, LAN IPs, etc.)
-    return callback(null, true);
-  },
+  origin: true, // Allow any origin for Hackathon demo purposes
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
