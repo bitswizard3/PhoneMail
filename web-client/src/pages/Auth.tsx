@@ -88,6 +88,23 @@ const Auth: React.FC = () => {
     }
   }, [otp]);
 
+  useEffect(() => {
+    if (step === 'otp' && 'OTPCredential' in window) {
+      const abortController = new AbortController();
+      
+      navigator.credentials.get({
+        otp: { transport: ['sms'] },
+        signal: abortController.signal
+      }).then((otpObj: any) => {
+        if (otpObj && otpObj.code) {
+           setOtp(otpObj.code);
+        }
+      }).catch(err => console.log('WebOTP error:', err));
+      
+      return () => abortController.abort();
+    }
+  }, [step]);
+
   const handleBack = () => {
     setStep('phone');
     setOtp('');
