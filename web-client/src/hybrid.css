@@ -102,3 +102,8 @@
 .quick-replies-scroll::-webkit-scrollbar { display: none; }
 .quick-reply-chip { background: var(--bg-elevated); border: 1px solid var(--primary); color: white; padding: 6px 14px; border-radius: 16px; font-size: 0.85rem; white-space: nowrap; cursor: pointer; transition: background 0.2s, color 0.2s; }
 .quick-reply-chip:hover { background: var(--primary); color: black; font-weight: 500; }
+
+/* Message Selection */
+.msg-selected { outline: 2px solid var(--primary); outline-offset: -2px; opacity: 0.85; }
+.msg-selected.msg-sent { background: rgba(0, 229, 255, 0.15) !important; }
+.msg-selected.msg-received { background: rgba(0, 229, 255, 0.1) !important; }

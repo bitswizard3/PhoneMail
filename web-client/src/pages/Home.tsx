@@ -66,6 +66,10 @@ const Home: React.FC = () => {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Message selection state
+  const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,7 +86,10 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     const handleBackButton = async () => {
-      if (showNewChat) {
+      if (isSelectMode) {
+        setIsSelectMode(false);
+        setSelectedMessages(new Set());
+      } else if (showNewChat) {
         setShowNewChat(false);
       } else if (isMenuOpen) {
         setIsMenuOpen(false);
@@ -99,7 +106,7 @@ const Home: React.FC = () => {
     return () => {
       listener.then(l => l.remove());
     };
-  }, [showNewChat, isMenuOpen, isExpandedCompose, activeThread]);
+  }, [isSelectMode, showNewChat, isMenuOpen, isExpandedCompose, activeThread]);
 
   const fetchEmails = async () => {
     try {
@@ -259,6 +266,36 @@ const Home: React.FC = () => {
     document.documentElement.style.setProperty('--primary', color);
   };
 
+  const toggleSelectMessage = (msgId: string) => {
+    setSelectedMessages(prev => {
+      const next = new Set(prev);
+      if (next.has(msgId)) {
+        next.delete(msgId);
+      } else {
+        next.add(msgId);
+      }
+      if (next.size === 0) setIsSelectMode(false);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    const count = selectedMessages.size;
+    if (count === 0) return;
+    const confirmed = confirm(`Delete ${count} message${count > 1 ? 's' : ''}?`);
+    if (!confirmed) return;
+    for (const msgId of selectedMessages) {
+      try {
+        await emailAPI.deleteEmail(msgId);
+      } catch (e) {
+        console.error('Delete failed for', msgId, e);
+      }
+    }
+    setSelectedMessages(new Set());
+    setIsSelectMode(false);
+    fetchEmails();
+  };
+
   const filteredThreads = threads.filter(t => 
     t.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.contactEmail.toLowerCase().includes(searchQuery.toLowerCase())
@@ -416,28 +453,50 @@ const Home: React.FC = () => {
         {activeThread ? (
           <>
             <div className="room-header">
-              <button className="back-btn" onClick={() => { setActiveThread(null); setIsExpandedCompose(false); }}>
-                <ArrowLeft size={24} />
-              </button>
-              <div className="thread-avatar" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
-                {getInitials(activeThread.contactName)}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: '600', color: 'white' }}>{activeThread.contactName}</div>
-                {activeThread.contactName !== activeThread.contactEmail && (
-                   <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{activeThread.contactEmail}</div>
-                )}
-              </div>
-              <button 
-                className="icon-btn" 
-                title="Clear Chat" 
-                onClick={() => {
-                  alert("Chat Cleared! (Demo Feature)");
-                  setActiveThread(null);
-                }}
-              >
-                <Trash2 size={20} color="var(--danger, #ff4444)" />
-              </button>
+              {isSelectMode ? (
+                <>
+                  <button className="back-btn" onClick={() => { setIsSelectMode(false); setSelectedMessages(new Set()); }}>
+                    <X size={24} />
+                  </button>
+                  <div style={{ flex: 1, fontWeight: '600', color: 'white', fontSize: '1.1rem' }}>
+                    {selectedMessages.size} selected
+                  </div>
+                  <button 
+                    className="icon-btn" 
+                    title="Delete Selected" 
+                    onClick={handleDeleteSelected}
+                    style={{ background: 'transparent', border: 'none' }}
+                  >
+                    <Trash2 size={22} color="#ff4444" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="back-btn" onClick={() => { setActiveThread(null); setIsExpandedCompose(false); }}>
+                    <ArrowLeft size={24} />
+                  </button>
+                  <div className="thread-avatar" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
+                    {getInitials(activeThread.contactName)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '600', color: 'white' }}>{activeThread.contactName}</div>
+                    {activeThread.contactName !== activeThread.contactEmail && (
+                       <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{activeThread.contactEmail}</div>
+                    )}
+                  </div>
+                  <button 
+                    className="icon-btn" 
+                    title="Clear Chat" 
+                    onClick={() => {
+                      alert("Chat Cleared! (Demo Feature)");
+                      setActiveThread(null);
+                    }}
+                    style={{ background: 'transparent', border: 'none' }}
+                  >
+                    <Trash2 size={20} color="var(--danger, #ff4444)" />
+                  </button>
+                </>
+              )}
             </div>
 
             <div className="room-messages">
@@ -450,8 +509,55 @@ const Home: React.FC = () => {
                 activeThread.messages.map((msg, idx) => {
                   const isMine = msg.sender_email === user?.email;
                   const isReadByRecipient = msg.recipients?.some(r => r.is_read);
+                  const isSelected = selectedMessages.has(msg.id);
                   return (
-                    <div key={msg.id || idx} className={`message-card ${isMine ? 'msg-sent' : 'msg-received'}`}>
+                    <div 
+                      key={msg.id || idx} 
+                      className={`message-card ${isMine ? 'msg-sent' : 'msg-received'} ${isSelected ? 'msg-selected' : ''}`}
+                      onClick={() => isSelectMode && msg.id && toggleSelectMessage(msg.id)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (msg.id) {
+                          setIsSelectMode(true);
+                          toggleSelectMessage(msg.id);
+                        }
+                      }}
+                      onTouchStart={() => {
+                        if (!isSelectMode && msg.id) {
+                          const timer = setTimeout(() => {
+                            setIsSelectMode(true);
+                            toggleSelectMessage(msg.id);
+                          }, 500);
+                          (window as any).__longPressTimer = timer;
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        clearTimeout((window as any).__longPressTimer);
+                      }}
+                      onTouchMove={() => {
+                        clearTimeout((window as any).__longPressTimer);
+                      }}
+                      style={{ position: 'relative', cursor: isSelectMode ? 'pointer' : 'default' }}
+                    >
+                      {isSelectMode && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '8px',
+                          left: isMine ? 'auto' : '8px',
+                          right: isMine ? '8px' : 'auto',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          border: isSelected ? 'none' : '2px solid var(--text-tertiary)',
+                          background: isSelected ? 'var(--primary)' : 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 2
+                        }}>
+                          {isSelected && <Check size={14} color="black" />}
+                        </div>
+                      )}
                       {msg.subject && msg.subject !== 'PhoneMail Message' && msg.subject !== '(No Subject)' && (
                         <span className="msg-subject">{msg.subject}</span>
                       )}
