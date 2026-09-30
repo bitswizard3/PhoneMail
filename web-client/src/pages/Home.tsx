@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { emailAPI } from '../services/api';
-import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X, User, Trash2, Search, HelpCircle, Info } from 'lucide-react';
+import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X, User, Trash2, Search, HelpCircle, Info, Forward, Edit2 } from 'lucide-react';
 import { App } from '@capacitor/app';
 
 interface Email {
@@ -43,8 +43,29 @@ const QUICK_REPLIES = [
 const Home: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [threads, setThreads] = useState<Thread[]>([]);
+  const [threads, setThreads] = useState<Thread[]>(() => {
+    const saved = localStorage.getItem('cached_threads');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
+  
+  const [customNames, setCustomNames] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('custom_names');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const saveCustomName = (email: string, name: string) => {
+    const updated = { ...customNames, [email]: name };
+    setCustomNames(updated);
+    localStorage.setItem('custom_names', JSON.stringify(updated));
+    setThreads(prev => prev.map(t => t.contactEmail === email ? { ...t, contactName: name } : t));
+    if (activeThread && activeThread.contactEmail === email) {
+      setActiveThread(prev => prev ? { ...prev, contactName: name } : null);
+    }
+  };
+
+  const [isThreadSelectMode, setIsThreadSelectMode] = useState(false);
+  const [selectedThreads, setSelectedThreads] = useState<Set<string>>(new Set());
   const [newMessageText, setNewMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
   
@@ -97,6 +118,9 @@ const Home: React.FC = () => {
       } else if (isSelectMode) {
         setIsSelectMode(false);
         setSelectedMessages(new Set());
+      } else if (isThreadSelectMode) {
+        setIsThreadSelectMode(false);
+        setSelectedThreads(new Set());
       } else if (showNewChat) {
         setShowNewChat(false);
       } else if (isMenuOpen) {
@@ -114,7 +138,7 @@ const Home: React.FC = () => {
     return () => {
       listener.then(l => l.remove());
     };
-  }, [showAboutModal, showHelpModal, isSelectMode, showNewChat, isMenuOpen, isExpandedCompose, activeThread]);
+  }, [showAboutModal, showHelpModal, isSelectMode, isThreadSelectMode, showNewChat, isMenuOpen, isExpandedCompose, activeThread]);
 
   const fetchEmails = async () => {
     try {
@@ -135,10 +159,10 @@ const Home: React.FC = () => {
 
         if (isSentByMe) {
           counterpartEmail = email.recipients?.[0]?.recipient_email || 'Unknown';
-          counterpartName = counterpartEmail;
+          counterpartName = customNames[counterpartEmail] || counterpartEmail;
         } else {
           counterpartEmail = email.sender_email;
-          counterpartName = email.sender_name || email.sender_email;
+          counterpartName = customNames[counterpartEmail] || email.sender_name || email.sender_email;
         }
 
         if (!threadsMap.has(counterpartEmail)) {
@@ -166,6 +190,7 @@ const Home: React.FC = () => {
 
       const sortedThreads = Array.from(threadsMap.values()).sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
       setThreads(sortedThreads);
+      localStorage.setItem('cached_threads', JSON.stringify(sortedThreads));
 
       if (activeThread) {
         const updated = sortedThreads.find(t => t.contactEmail === activeThread.contactEmail);
@@ -332,6 +357,56 @@ const Home: React.FC = () => {
     fetchEmails();
   };
 
+  const handlePickContact = async () => {
+    if ('contacts' in navigator && 'ContactsManager' in window) {
+      try {
+        const contacts = await (navigator as any).contacts.select(['name', 'tel'], { multiple: false });
+        if (contacts.length > 0 && contacts[0].tel.length > 0) {
+          setNewChatInput(contacts[0].tel[0].replace(/[^0-9+]/g, ''));
+        }
+      } catch (ex) {
+        console.error(ex);
+      }
+    } else {
+      alert('Contact picking is only supported on Chrome Android. Please type manually.');
+    }
+  };
+
+  const toggleSelectThread = (email: string) => {
+    setSelectedThreads(prev => {
+      const next = new Set(prev);
+      if (next.has(email)) next.delete(email);
+      else next.add(email);
+      if (next.size === 0) setIsThreadSelectMode(false);
+      return next;
+    });
+  };
+
+  const handleDeleteSelectedThreads = async () => {
+    const count = selectedThreads.size;
+    if (count === 0) return;
+    if (!confirm(`Delete ${count} selected chats?`)) return;
+    
+    setThreads(prev => {
+      const remaining = prev.filter(t => !selectedThreads.has(t.contactEmail));
+      localStorage.setItem('cached_threads', JSON.stringify(remaining));
+      return remaining;
+    });
+    if (activeThread && selectedThreads.has(activeThread.contactEmail)) setActiveThread(null);
+    setIsThreadSelectMode(false);
+    
+    for (const email of selectedThreads) {
+       const thread = threads.find(t => t.contactEmail === email);
+       if (thread) {
+         try {
+           await Promise.all(thread.messages.map(m => emailAPI.deleteEmail(m.id)));
+         } catch(e) {}
+       }
+    }
+    setSelectedThreads(new Set());
+    fetchEmails();
+  };
+
   const filteredThreads = threads.filter(t => 
     t.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.contactEmail.toLowerCase().includes(searchQuery.toLowerCase())
@@ -408,17 +483,38 @@ const Home: React.FC = () => {
       {/* LEFT PANE */}
       <div className="thread-list-pane">
         <div className="hybrid-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button className="icon-btn" onClick={() => setIsMenuOpen(true)} style={{ border: 'none', background: 'transparent' }} title="Menu">
-              <Menu size={24} color="var(--primary)" />
-            </button>
-            <h2 style={{ margin: 0 }}>Chats</h2>
-          </div>
-          <div className="header-actions">
-            <button className="icon-btn" onClick={() => setIsMenuOpen(true)} title="Profile">
-              <div className="hb-avatar-small">{getInitials(user?.email || '')}</div>
-            </button>
-          </div>
+          {isThreadSelectMode ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button className="icon-btn" onClick={() => { setIsThreadSelectMode(false); setSelectedThreads(new Set()); }} style={{ border: 'none', background: 'transparent' }}>
+                  <X size={24} color="var(--primary)" />
+                </button>
+                <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{selectedThreads.size} selected</h2>
+              </div>
+              <div className="header-actions">
+                <button className="icon-btn" onClick={handleDeleteSelectedThreads} style={{ border: 'none', background: 'transparent' }} title="Delete Selected">
+                  <Trash2 size={24} color="#ff4444" />
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button className="icon-btn" onClick={() => setIsMenuOpen(true)} style={{ border: 'none', background: 'transparent' }} title="Menu">
+                  <Menu size={24} color="var(--primary)" />
+                </button>
+                <h2 style={{ margin: 0 }}>Chats</h2>
+              </div>
+              <div className="header-actions">
+                <button className="icon-btn" onClick={() => setIsThreadSelectMode(true)} title="Select Chats" style={{ border: 'none', background: 'transparent', marginRight: '8px' }}>
+                   <CheckCheck size={20} color="var(--primary)" />
+                </button>
+                <button className="icon-btn" onClick={() => setIsMenuOpen(true)} title="Profile">
+                  <div className="hb-avatar-small">{getInitials(user?.email || '')}</div>
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Search Bar */}
@@ -449,12 +545,38 @@ const Home: React.FC = () => {
             filteredThreads.map((thread) => (
               <div 
                 key={thread.contactEmail} 
-                className={`thread-item ${activeThread?.contactEmail === thread.contactEmail ? 'active' : ''}`}
+                className={`thread-item ${activeThread?.contactEmail === thread.contactEmail ? 'active' : ''} ${selectedThreads.has(thread.contactEmail) ? 'msg-selected' : ''}`}
                 onClick={() => {
-                  setActiveThread(thread);
-                  markThreadAsRead(thread);
+                  if (isThreadSelectMode) {
+                    toggleSelectThread(thread.contactEmail);
+                  } else {
+                    setActiveThread(thread);
+                    markThreadAsRead(thread);
+                  }
                 }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setIsThreadSelectMode(true);
+                  toggleSelectThread(thread.contactEmail);
+                }}
+                onTouchStart={() => {
+                  if (!isThreadSelectMode) {
+                    const timer = setTimeout(() => {
+                      setIsThreadSelectMode(true);
+                      toggleSelectThread(thread.contactEmail);
+                    }, 500);
+                    (window as any).__longPressThreadTimer = timer;
+                  }
+                }}
+                onTouchEnd={() => clearTimeout((window as any).__longPressThreadTimer)}
+                onTouchMove={() => clearTimeout((window as any).__longPressThreadTimer)}
+                style={{ position: 'relative' }}
               >
+                {isThreadSelectMode && (
+                   <div style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 5, width: '20px', height: '20px', borderRadius: '50%', background: selectedThreads.has(thread.contactEmail) ? 'var(--primary)' : 'transparent', border: selectedThreads.has(thread.contactEmail) ? 'none' : '2px solid gray', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                     {selectedThreads.has(thread.contactEmail) && <Check size={14} color="black" />}
+                   </div>
+                )}
                 <div className="thread-avatar">
                   {getInitials(thread.contactName)}
                 </div>
@@ -497,6 +619,26 @@ const Home: React.FC = () => {
                   <div style={{ flex: 1, fontWeight: '600', color: 'white', fontSize: '1.1rem' }}>
                     {selectedMessages.size} selected
                   </div>
+                  {selectedMessages.size === 1 && (
+                    <button 
+                      className="icon-btn" 
+                      onClick={() => {
+                        const msgId = Array.from(selectedMessages)[0];
+                        const msg = activeThread.messages.find(m => m.id === msgId);
+                        if (msg) {
+                          const fwText = `\n\n---------- Forwarded message ---------\nFrom: ${msg.sender_name || msg.sender_email}\nDate: ${new Date(msg.created_at).toLocaleString()}\nSubject: ${msg.subject || 'No Subject'}\n\n${msg.body}`;
+                          setNewMessageText(fwText);
+                          setIsExpandedCompose(true);
+                          setIsSelectMode(false);
+                          setSelectedMessages(new Set());
+                        }
+                      }}
+                      style={{ background: 'transparent', border: 'none', marginRight: '8px' }}
+                      title="Forward"
+                    >
+                      <Forward size={22} color="white" />
+                    </button>
+                  )}
                   <button 
                     className="icon-btn" 
                     title="Delete Selected" 
@@ -514,11 +656,19 @@ const Home: React.FC = () => {
                   <div className="thread-avatar" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
                     {getInitials(activeThread.contactName)}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '600', color: 'white' }}>{activeThread.contactName}</div>
-                    {activeThread.contactName !== activeThread.contactEmail && (
-                       <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{activeThread.contactEmail}</div>
-                    )}
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div>
+                      <div style={{ fontWeight: '600', color: 'white' }}>{activeThread.contactName}</div>
+                      {activeThread.contactName !== activeThread.contactEmail && (
+                         <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{activeThread.contactEmail}</div>
+                      )}
+                    </div>
+                    <button className="icon-btn" onClick={() => {
+                      const newName = window.prompt("Enter name for " + activeThread.contactEmail, activeThread.contactName !== activeThread.contactEmail ? activeThread.contactName : '');
+                      if (newName !== null) saveCustomName(activeThread.contactEmail, newName);
+                    }} style={{ background: 'transparent', border: 'none', padding: '4px' }} title="Edit Name">
+                      <Edit2 size={16} color="var(--primary)" />
+                    </button>
                   </div>
                   <button 
                     className="icon-btn" 
@@ -727,6 +877,11 @@ const Home: React.FC = () => {
         <div className="new-chat-modal" onClick={(e) => { if(e.target === e.currentTarget) setShowNewChat(false); }}>
           <div className="new-chat-box">
             <h3>New Message</h3>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <button className="btn-secondary" style={{ flex: 1, padding: '8px', background: 'var(--bg-elevated)', border: 'none', borderRadius: '8px', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={handlePickContact}>
+                <User size={16} color="var(--primary)" /> Pick from Contacts
+              </button>
+            </div>
             <input 
               type="text"
               placeholder="Enter mobile number or Email ID"
