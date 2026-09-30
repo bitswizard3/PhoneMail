@@ -3,6 +3,7 @@
  * Eliminates the Docker/Redis dependency entirely.
  * Supports TTL (time-to-live) for temporary data like OTP pending registrations.
  */
+import Redis from 'ioredis';
 
 const redisUrl = process.env.REDIS_URL;
 
