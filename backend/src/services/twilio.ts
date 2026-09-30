@@ -48,31 +48,60 @@ const getClient = (): twilio.Twilio => {
   }
   return client;
 };
+import pool from '../config/database';
+import axios from 'axios';
+
+const FAST2SMS_API_KEY = process.env.FAST2SMS_API_KEY;
+
 export const sendOTP = async (phone: string): Promise<boolean> => {
   const toPhone = normalizePhone(phone);
+  const numericPhone = toPhone.replace('+91', '').replace('+', '');
 
-  if (!isTwilioConfigured() || !verifyServiceSid) {
-    console.log(`📱 [MOCK OTP] OTP sent to ${toPhone} (use 000011)`);
+  // Generate 6 digit OTP
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Store in Database to persist across Vercel serverless functions
+  try {
+    await pool.query(
+      `INSERT INTO otps (phone, code, expires_at) 
+       VALUES ($1, $2, NOW() + INTERVAL '10 minutes')
+       ON CONFLICT (phone) DO UPDATE SET code = EXCLUDED.code, expires_at = EXCLUDED.expires_at`,
+      [toPhone, otpCode]
+    );
+  } catch (dbErr) {
+    console.error('❌ Failed to save OTP to database:', dbErr);
+  }
+
+  if (!FAST2SMS_API_KEY) {
+    console.log(`📱 [MOCK OTP] OTP sent to ${toPhone}: ${otpCode}`);
     return true;
   }
 
   try {
-    const twilioClient = getClient();
-    await twilioClient.verify.v2.services(verifyServiceSid)
-      .verifications
-      .create({ to: toPhone, channel: 'sms' });
+    const message = `Your PhoneMail code is ${otpCode}.\n\n@phonemail.app #${otpCode}`;
+    
+    // Use Fast2SMS for guaranteed delivery to any Indian number, bypassing Twilio Trial restrictions
+    await axios.get('https://www.fast2sms.com/dev/bulkV2', {
+      params: {
+        authorization: FAST2SMS_API_KEY,
+        route: 'q',
+        message: message,
+        flash: 0,
+        numbers: numericPhone
+      }
+    });
       
-    console.log(`📱 Twilio Verify OTP sent to ${toPhone}`);
+    console.log(`📱 SMS OTP sent to ${toPhone}`);
     return true;
   } catch (error: any) {
-    console.error('❌ Failed to send Twilio Verify OTP:', error.message);
-    console.log(`📱 [MOCK OTP FALLBACK] Use 000011 for ${toPhone}`);
-    return true; // Don't block the UI, allow them to use 000011
+    console.error('❌ Failed to send SMS OTP:', error.response?.data || error.message);
+    console.log(`📱 [MOCK OTP FALLBACK] Use ${otpCode} for ${toPhone}`);
+    return true; // Don't block the UI
   }
 };
 
 /**
- * Verify OTP via Twilio Verify API
+ * Verify OTP via Database
  */
 export const verifyOTP = async (phone: string, code: string): Promise<boolean> => {
   const normalizedPhone = normalizePhone(phone);
@@ -83,25 +112,23 @@ export const verifyOTP = async (phone: string, code: string): Promise<boolean> =
     return true;
   }
 
-  if (!isTwilioConfigured() || !verifyServiceSid) {
-    return false;
-  }
-
   try {
-    const twilioClient = getClient();
-    const verificationCheck = await twilioClient.verify.v2.services(verifyServiceSid)
-      .verificationChecks
-      .create({ to: normalizedPhone, code });
+    const result = await pool.query(
+      'SELECT code FROM otps WHERE phone = $1 AND expires_at > NOW()',
+      [normalizedPhone]
+    );
 
-    if (verificationCheck.status === 'approved') {
+    if (result.rows.length > 0 && result.rows[0].code === code) {
       console.log(`📱 [VERIFY] OTP code verified for ${normalizedPhone}`);
+      // Delete the OTP after successful verification
+      await pool.query('DELETE FROM otps WHERE phone = $1', [normalizedPhone]);
       return true;
     }
     
-    console.log(`📱 [VERIFY] Failed verification for ${normalizedPhone}. Status: ${verificationCheck.status}`);
+    console.log(`📱 [VERIFY] Failed verification for ${normalizedPhone}`);
     return false;
   } catch (error: any) {
-    console.error('❌ Failed to verify Twilio OTP:', error.message);
+    console.error('❌ Failed to verify OTP in database:', error.message);
     return false;
   }
 };
