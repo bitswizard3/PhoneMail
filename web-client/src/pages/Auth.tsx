@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, ArrowRight, Shield, PhoneCall, PhoneOff, Globe, CheckCircle, Settings, Check } from 'lucide-react';
 import { authAPI } from '../services/api';
+import { AndroidSmsRetriever } from '@capgo/capacitor-android-sms-retriever';
 
 type AuthStep = 'language' | 'terms' | 'phone' | 'otp';
 
@@ -89,19 +90,51 @@ const Auth: React.FC = () => {
   }, [otp]);
 
   useEffect(() => {
-    if (step === 'otp' && 'OTPCredential' in window) {
-      const abortController = new AbortController();
-      
-      navigator.credentials.get({
-        otp: { transport: ['sms'] },
-        signal: abortController.signal
-      } as any).then((otpObj: any) => {
-        if (otpObj && otpObj.code) {
-           setOtp(otpObj.code);
+    let listener: any;
+    
+    if (step === 'otp') {
+      const setupRetriever = async () => {
+        try {
+          // Listen for the SMS
+          listener = await AndroidSmsRetriever.addListener('smsReceived', (event: any) => {
+            const body = event.message || '';
+            const match = body.match(/\b\d{6}\b/);
+            if (match) {
+              setOtp(match[0]);
+            }
+          });
+          
+          // Log app hash for debugging so user knows what to append to SMS if possible
+          const { hash } = await AndroidSmsRetriever.getHashString();
+          console.log('📱 App Hash for SMS Retriever:', hash);
+          
+          // Start the retriever
+          await AndroidSmsRetriever.startWatch();
+        } catch (e) {
+          console.log('SmsRetriever not supported or failed', e);
         }
-      }).catch(err => console.log('WebOTP error:', err));
+      };
       
-      return () => abortController.abort();
+      setupRetriever();
+      
+      // Keep WebOTP for fallback / web browser
+      const abortController = new AbortController();
+      if ('OTPCredential' in window) {
+        navigator.credentials.get({
+          otp: { transport: ['sms'] },
+          signal: abortController.signal
+        } as any).then((otpObj: any) => {
+          if (otpObj && otpObj.code) {
+             setOtp(otpObj.code);
+          }
+        }).catch(err => console.log('WebOTP error:', err));
+      }
+      
+      return () => {
+        if (listener && listener.remove) listener.remove();
+        AndroidSmsRetriever.stopWatch().catch(() => {});
+        if ('OTPCredential' in window) abortController.abort();
+      };
     }
   }, [step]);
 
