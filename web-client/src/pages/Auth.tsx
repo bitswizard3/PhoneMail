@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, ArrowRight, Shield, PhoneCall, PhoneOff, Globe, CheckCircle, Settings, Check } from 'lucide-react';
@@ -81,6 +81,12 @@ const Auth: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (otp.length === 6) {
+      handleVerifyOTP({ preventDefault: () => {} } as React.FormEvent);
+    }
+  }, [otp]);
 
   const handleBack = () => {
     setStep('phone');
