@@ -103,7 +103,7 @@ const Settings: React.FC = () => {
           </button>
           <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Account Settings</h2>
         </div>
-        <div className="settings-container" style={{ padding: '24px 20px', paddingBottom: '120px' }}>
+        <div className="settings-container" style={{ padding: '24px 20px' }}>
 
           {message && (
             <div className={`toast ${message.includes('success') ? 'success' : 'error'}`} style={{ position: 'relative', marginBottom: '20px' }}>
@@ -236,30 +236,6 @@ const Settings: React.FC = () => {
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="bottom-nav">
-        <div className="bottom-nav-item" onClick={() => navigate('/')}>
-          <Inbox size={24} />
-          <span>Inbox</span>
-        </div>
-        <div className="bottom-nav-item" onClick={() => navigate('/')}>
-          <Send size={24} />
-          <span>Sent</span>
-        </div>
-        <div className="bottom-nav-item compose-fab" onClick={() => navigate('/')}>
-          <div className="fab-inner">
-            <PenSquare size={24} color="white" />
-          </div>
-        </div>
-        <div className="bottom-nav-item" onClick={() => window.location.reload()}>
-          <RefreshCw size={24} />
-          <span>Refresh</span>
-        </div>
-        <div className="bottom-nav-item active">
-          <User size={24} />
-          <span>Profile</span>
-        </div>
-      </div>
     </div>
   );
 };
