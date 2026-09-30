@@ -108,6 +108,9 @@ export const verifyOTP = async (phone: string, code: string): Promise<boolean> =
     console.error('❌ Failed to verify Twilio OTP:', error.message);
     return false;
   }
+  
+  console.log(`📱 [VERIFY] Failed verification for ${normalizedPhone}. Provided: ${code}, Stored: ${storedCode}`);
+  return false;
 };
 
 /**
