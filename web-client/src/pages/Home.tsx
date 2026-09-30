@@ -44,14 +44,22 @@ const Home: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [threads, setThreads] = useState<Thread[]>(() => {
-    const saved = localStorage.getItem('cached_threads');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('cached_threads');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
   
   const [customNames, setCustomNames] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('custom_names');
-    return saved ? JSON.parse(saved) : {};
+    try {
+      const saved = localStorage.getItem('custom_names');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
   });
 
   const saveCustomName = (email: string, name: string) => {
@@ -345,15 +353,30 @@ const Home: React.FC = () => {
     if (count === 0) return;
     const confirmed = confirm(`Delete ${count} message${count > 1 ? 's' : ''}?`);
     if (!confirmed) return;
-    for (const msgId of selectedMessages) {
+    
+    // Optimistic UI Update
+    const messagesToDelete = new Set(selectedMessages);
+    setSelectedMessages(new Set());
+    setIsSelectMode(false);
+
+    if (activeThread) {
+      const updatedMessages = activeThread.messages.filter(m => !messagesToDelete.has(m.id));
+      const updatedThread = { ...activeThread, messages: updatedMessages };
+      setActiveThread(updatedThread);
+      setThreads(prev => {
+        const next = prev.map(t => t.contactEmail === updatedThread.contactEmail ? updatedThread : t);
+        localStorage.setItem('cached_threads', JSON.stringify(next));
+        return next;
+      });
+    }
+
+    for (const msgId of messagesToDelete) {
       try {
         await emailAPI.deleteEmail(msgId);
       } catch (e) {
         console.error('Delete failed for', msgId, e);
       }
     }
-    setSelectedMessages(new Set());
-    setIsSelectMode(false);
     fetchEmails();
   };
 
