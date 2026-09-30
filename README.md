@@ -81,6 +81,15 @@ In many student projects, clicking "Delete" just hides the message on the screen
 We didn't want to build a website and an Android app separately. 
 **What we did:** We wrote the code once using React (for the web), and then we used a special tool called **Capacitor** to wrap that exact same website inside an Android App (`phonemail.apk`). It gives you the smooth feel of a real mobile app without doing double the work!
 
+### 📖 5. The Smart Contact Picker
+Typing a 10-digit number is annoying. We added a "Pick from Contacts" button! It securely opens your phone's contact book so you can just tap on a name. No typing required, and it doesn't even need creepy background permissions!
+
+### ✏️ 6. Save Friendly Names
+If an unknown number emails you, you don't have to memorize it. You can click a small pencil icon next to the number and save it as "Papa" or "Rahul". The app remembers this forever, just like saving a contact!
+
+### ⏩ 7. Multi-Select & Forwarding
+Just like modern chat apps, you can **Long-Press** on any chat or message! This lets you select multiple chats to delete them all at once, or select a message to instantly **Forward** it to someone else with a single tap.
+
 ---
 
 ## 🏗️ How It All Works (For the Judges)
@@ -181,6 +190,9 @@ npm run dev
 
 ### 🎯 Things to check while evaluating:
 - **Test the Magic Send:** Send an email and notice how there is **zero waiting time**. The message appears instantly!
+- **Test the Contact Picker:** Click the '+' button and tap "Pick from Contacts" on your phone.
+- **Test Saving Names:** Click the pencil icon next to any number at the top of a chat to save a friendly name.
+- **Test Multi-Select:** **Long-press** any chat from the list (or any message) to select multiple items, forward them, or delete them in bulk!
 - **Test the Chat Delete:** Try deleting an email chat. It's not a fake delete; it actually commands the PostgreSQL database to erase the data.
 - **Test the View:** If you use it on a computer, it looks like a wide email app. If you shrink your browser window to mobile size, it instantly changes its design to look exactly like a mobile chat app!
 
