@@ -243,9 +243,9 @@ const Home: React.FC = () => {
         <div className="sidebar-overlay" onClick={() => setIsMenuOpen(false)}>
           <div className="sidebar-menu" onClick={e => e.stopPropagation()}>
             <div className="sidebar-header">
-              <div className="sidebar-avatar">{getInitials(user?.name || user?.email || '')}</div>
+              <div className="sidebar-avatar">{getInitials(user?.email || '')}</div>
               <div className="sidebar-user-info">
-                <h3>{user?.name}</h3>
+                <h3>{user?.email}</h3>
                 <p>{user?.email}</p>
               </div>
               <button className="icon-btn" onClick={() => setIsMenuOpen(false)}>
@@ -293,7 +293,7 @@ const Home: React.FC = () => {
           </h2>
           <div className="header-actions">
             <button className="icon-btn" onClick={() => setIsMenuOpen(true)} title="Menu">
-              <div className="sidebar-avatar-small">{getInitials(user?.name || user?.email || '')}</div>
+              <div className="sidebar-avatar-small">{getInitials(user?.email || '')}</div>
             </button>
           </div>
         </div>
