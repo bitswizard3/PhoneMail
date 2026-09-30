@@ -17,27 +17,11 @@ import voiceRoutes from './routes/voice';
 const app = express();
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 4000;
 
-// Middleware — Dynamic CORS: allow any origin in development so mobile
-// devices on the same WiFi can reach the API (fixes the "works on
-// desktop but not on mobile" problem).
+// Middleware — Dynamic CORS: allow any origin so the frontend on Vercel
+// and mobile devices can reach the API without issues.
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-
-    // In production you'd whitelist specific domains; in dev allow everything
-    if (process.env.NODE_ENV === 'production') {
-      const allowedOrigins = [
-        'https://phonemail.local',
-        // add your production domain here
-      ];
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'));
-    }
-
-    // Development: allow ALL origins (localhost, LAN IPs, etc.)
+    // Allow everything for the college project demo
     return callback(null, true);
   },
   credentials: true,
