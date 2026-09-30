@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { emailAPI } from '../services/api';
-import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, RefreshCw, MessageCircle } from 'lucide-react';
+import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, RefreshCw, MessageCircle, Maximize2, Minimize2 } from 'lucide-react';
 
 interface Email {
   id: string;
@@ -13,6 +13,8 @@ interface Email {
   is_read: boolean;
   created_at: string;
   recipients?: { recipient_email: string; is_read?: boolean }[];
+  cc?: { recipient_email: string }[];
+  bcc?: { recipient_email: string }[];
 }
 
 interface Thread {
@@ -32,9 +34,15 @@ const Home: React.FC = () => {
   const [newMessageText, setNewMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
   
+  // Expanded Compose State
+  const [isExpandedCompose, setIsExpandedCompose] = useState(false);
+  const [composeCc, setComposeCc] = useState('');
+  const [composeBcc, setComposeBcc] = useState('');
+  const [composeSubject, setComposeSubject] = useState('');
+
   // New chat modal
   const [showNewChat, setShowNewChat] = useState(false);
-  const [newChatPhone, setNewChatPhone] = useState('');
+  const [newChatInput, setNewChatInput] = useState('');
   const [newChatError, setNewChatError] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -46,15 +54,13 @@ const Home: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Scroll to bottom when messages change
-    if (activeThread) {
+    if (activeThread && !isExpandedCompose) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [activeThread?.messages]);
+  }, [activeThread?.messages, isExpandedCompose]);
 
   const fetchEmails = async () => {
     try {
-      // Fetch both inbox and sent
       const [inboxRes, sentRes] = await Promise.all([
         emailAPI.getEmails('inbox', 'all', 1),
         emailAPI.getEmails('sent', 'all', 1)
@@ -72,7 +78,7 @@ const Home: React.FC = () => {
 
         if (isSentByMe) {
           counterpartEmail = email.recipients?.[0]?.recipient_email || 'Unknown';
-          counterpartName = counterpartEmail; // Fallback
+          counterpartName = counterpartEmail;
         } else {
           counterpartEmail = email.sender_email;
           counterpartName = email.sender_name || email.sender_email;
@@ -90,7 +96,6 @@ const Home: React.FC = () => {
 
         const thread = threadsMap.get(counterpartEmail)!;
         
-        // Prevent duplicate messages in case they somehow exist in both
         if (!thread.messages.some(m => m.id === email.id)) {
           thread.messages.push(email);
         }
@@ -105,11 +110,9 @@ const Home: React.FC = () => {
       const sortedThreads = Array.from(threadsMap.values()).sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
       setThreads(sortedThreads);
 
-      // Update active thread if one is selected
       if (activeThread) {
         const updated = sortedThreads.find(t => t.contactEmail === activeThread.contactEmail);
         if (updated) {
-          // If there's a new message, update state
           if (updated.messages.length !== activeThread.messages.length) {
             setActiveThread(updated);
           }
@@ -124,13 +127,25 @@ const Home: React.FC = () => {
     if (!newMessageText.trim() || !activeThread) return;
     setIsSending(true);
     try {
+      const toList = [activeThread.contactEmail];
+      const ccList = composeCc ? composeCc.split(',').map((e) => e.trim()).filter(Boolean) : [];
+      const bccList = composeBcc ? composeBcc.split(',').map((e) => e.trim()).filter(Boolean) : [];
+      
       await emailAPI.sendEmail({
-        to: [activeThread.contactEmail],
-        subject: 'PhoneMail Message',
+        to: toList,
+        cc: ccList,
+        bcc: bccList,
+        subject: composeSubject || 'PhoneMail Message',
         body: newMessageText
       });
       setNewMessageText('');
-      fetchEmails(); // immediately fetch to update UI
+      if(isExpandedCompose) {
+        setIsExpandedCompose(false);
+        setComposeCc('');
+        setComposeBcc('');
+        setComposeSubject('');
+      }
+      fetchEmails();
     } catch (err) {
       console.error('Send failed', err);
     } finally {
@@ -139,22 +154,24 @@ const Home: React.FC = () => {
   };
 
   const handleStartNewChat = async () => {
-    if (!newChatPhone.trim()) {
-      setNewChatError('Enter a phone number');
+    if (!newChatInput.trim()) {
+      setNewChatError('Enter a phone number or email ID');
       return;
     }
     
-    // Normalize phone to email
-    let phone = newChatPhone.replace(/[^0-9+]/g, '');
-    if (!phone.startsWith('+')) {
-      phone = `+91${phone}`; // default IN
+    let targetEmail = newChatInput.trim();
+    
+    // If it doesn't look like an email, assume it's a phone number
+    if (!targetEmail.includes('@')) {
+      let phone = targetEmail.replace(/[^0-9+]/g, '');
+      if (!phone.startsWith('+')) {
+        phone = `+91${phone}`; // default IN
+      }
+      targetEmail = `${phone}@phonemail.local`;
     }
-    const targetEmail = `${phone}@phonemail.local`; // replace with actual domain if needed
 
-    // Check if thread exists
     let existingThread = threads.find(t => t.contactEmail === targetEmail);
     if (!existingThread) {
-      // Create empty thread locally
       existingThread = {
         contactEmail: targetEmail,
         contactName: targetEmail,
@@ -167,7 +184,7 @@ const Home: React.FC = () => {
     
     setActiveThread(existingThread);
     setShowNewChat(false);
-    setNewChatPhone('');
+    setNewChatInput('');
     setNewChatError('');
   };
 
@@ -201,7 +218,7 @@ const Home: React.FC = () => {
   return (
     <div className={`hybrid-layout ${activeThread ? 'chat-active' : ''}`}>
       
-      {/* LEFT PANE: THREAD LIST */}
+      {/* LEFT PANE */}
       <div className="thread-list-pane">
         <div className="hybrid-header">
           <h2><MessageCircle color="var(--primary)" size={24} /> Chats</h2>
@@ -259,20 +276,22 @@ const Home: React.FC = () => {
         </button>
       </div>
 
-      {/* RIGHT PANE: CHAT ROOM */}
+      {/* RIGHT PANE */}
       <div className="thread-room-pane">
         {activeThread ? (
           <>
             <div className="room-header">
-              <button className="back-btn" onClick={() => setActiveThread(null)}>
+              <button className="back-btn" onClick={() => { setActiveThread(null); setIsExpandedCompose(false); }}>
                 <ArrowLeft size={24} />
               </button>
               <div className="thread-avatar" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
                 {getInitials(activeThread.contactName)}
               </div>
               <div>
-                <div style={{ fontWeight: '600', color: 'white' }}>{activeThread.contactName.split('@')[0]}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{activeThread.contactEmail}</div>
+                <div style={{ fontWeight: '600', color: 'white' }}>{activeThread.contactName}</div>
+                {activeThread.contactName !== activeThread.contactEmail && (
+                   <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{activeThread.contactEmail}</div>
+                )}
               </div>
             </div>
 
@@ -304,25 +323,72 @@ const Home: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="room-input-area">
-              <input
-                type="text"
-                className="chat-input"
-                placeholder="Message"
-                value={newMessageText}
-                onChange={(e) => setNewMessageText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSendMessage();
-                }}
-              />
-              <button 
-                className="send-btn" 
-                onClick={handleSendMessage} 
-                disabled={!newMessageText.trim() || isSending}
-              >
-                <Send size={20} style={{ marginLeft: '-2px' }} />
-              </button>
-            </div>
+            {isExpandedCompose ? (
+              <div className="expanded-compose">
+                <div className="compose-field-row">
+                  <label>To</label>
+                  <input type="text" value={activeThread.contactEmail} disabled />
+                </div>
+                <div className="compose-field-row">
+                  <label>Cc</label>
+                  <input type="text" placeholder="Add Cc" value={composeCc} onChange={e => setComposeCc(e.target.value)} />
+                </div>
+                <div className="compose-field-row">
+                  <label>Bcc</label>
+                  <input type="text" placeholder="Add Bcc" value={composeBcc} onChange={e => setComposeBcc(e.target.value)} />
+                </div>
+                <div className="compose-field-row">
+                  <label>Subject</label>
+                  <input type="text" placeholder="Subject" value={composeSubject} onChange={e => setComposeSubject(e.target.value)} />
+                </div>
+                <textarea 
+                  placeholder="Write your email..." 
+                  value={newMessageText} 
+                  onChange={e => setNewMessageText(e.target.value)}
+                  autoFocus
+                />
+                <div className="compose-actions">
+                  <button className="btn-collapse" onClick={() => setIsExpandedCompose(false)}>
+                    <Minimize2 size={16} /> Chat Mode
+                  </button>
+                  <button 
+                    className="send-btn" 
+                    style={{ borderRadius: '8px', width: 'auto', padding: '0 24px' }}
+                    onClick={handleSendMessage} 
+                    disabled={!newMessageText.trim() || isSending}
+                  >
+                    <Send size={18} style={{ marginRight: '8px' }} /> Send Email
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="room-input-area">
+                <button 
+                  className="icon-btn" 
+                  title="Full Email Mode" 
+                  onClick={() => setIsExpandedCompose(true)}
+                >
+                  <Maximize2 size={20} color="var(--text-tertiary)" />
+                </button>
+                <input
+                  type="text"
+                  className="chat-input"
+                  placeholder="Message"
+                  value={newMessageText}
+                  onChange={(e) => setNewMessageText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSendMessage();
+                  }}
+                />
+                <button 
+                  className="send-btn" 
+                  onClick={handleSendMessage} 
+                  disabled={!newMessageText.trim() || isSending}
+                >
+                  <Send size={20} style={{ marginLeft: '-2px' }} />
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div className="empty-room" style={{ display: 'none' }}>
@@ -339,10 +405,10 @@ const Home: React.FC = () => {
           <div className="new-chat-box">
             <h3>New Message</h3>
             <input 
-              type="tel"
-              placeholder="Enter mobile number"
-              value={newChatPhone}
-              onChange={(e) => setNewChatPhone(e.target.value)}
+              type="text"
+              placeholder="Enter mobile number or Email ID"
+              value={newChatInput}
+              onChange={(e) => setNewChatInput(e.target.value)}
               autoFocus
             />
             {newChatError && <div style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '12px' }}>{newChatError}</div>}

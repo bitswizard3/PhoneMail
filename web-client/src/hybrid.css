@@ -61,3 +61,13 @@
 .new-chat-actions { display: flex; gap: 12px; justify-content: flex-end; }
 .btn-cancel { background: transparent; border: 1px solid var(--border); color: white; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
 .btn-start { background: var(--primary); border: none; color: black; font-weight: bold; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+
+/* Expanded Compose */
+.expanded-compose { padding: 20px; background: var(--bg-primary); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+.compose-field-row { display: flex; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; }
+.compose-field-row label { width: 60px; color: var(--text-tertiary); font-size: 0.85rem; font-weight: 500; }
+.compose-field-row input { flex: 1; background: transparent; border: none; color: white; outline: none; font-size: 0.95rem; }
+.expanded-compose textarea { width: 100%; min-height: 100px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 12px; color: white; resize: vertical; outline: none; margin-top: 8px; }
+.expanded-compose textarea:focus { border-color: var(--primary); }
+.compose-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.btn-collapse { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.85rem; }
