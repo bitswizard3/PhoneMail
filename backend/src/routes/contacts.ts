@@ -4,7 +4,7 @@ import { AuthRequest, authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.local';
+const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.app';
 
 /**
  * GET /api/contacts

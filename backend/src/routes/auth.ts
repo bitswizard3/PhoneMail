@@ -8,7 +8,7 @@ import { AuthRequest, authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.local';
+const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.app';
 const JWT_SECRET = process.env.JWT_SECRET || 'alphastack-phonemail-jwt-secret-key-2026';
 const JWT_EXPIRES_IN = 604800; // 7 days in seconds
 

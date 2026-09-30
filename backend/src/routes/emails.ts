@@ -9,7 +9,7 @@ const router = Router();
 // All email routes require authentication
 router.use(authMiddleware);
 
-const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.local';
+const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.app';
 
 /**
  * GET /api/emails

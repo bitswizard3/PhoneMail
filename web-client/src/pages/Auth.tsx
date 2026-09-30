@@ -192,7 +192,7 @@ const Auth: React.FC = () => {
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'left', marginBottom: '24px', paddingRight: '8px', minHeight: 0 }}>
               <div>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', fontSize: '16px' }}>📧 What is PhoneMail?</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.5', marginTop: '8px' }}>PhoneMail transforms your phone number into your email ID (e.g., 0000000000@phonemail.local). We organize all your emails into chat-style conversations, completely eliminating the clutter of traditional Inbox and Sent folders.</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.5', marginTop: '8px' }}>PhoneMail transforms your phone number into your email ID (e.g., 0000000000@phonemail.app). We organize all your emails into chat-style conversations, completely eliminating the clutter of traditional Inbox and Sent folders.</p>
               </div>
               <div>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', fontSize: '16px' }}>📱 Required Permissions</h3>
@@ -228,7 +228,7 @@ const Auth: React.FC = () => {
             <div style={{ textAlign: 'center', marginBottom: '32px' }}>
               <h2 style={{ fontSize: '24px', color: 'white' }}>Enter your phone number</h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '12px' }}>PhoneMail will create your email as</p>
-              <p style={{ color: 'var(--primary)', fontSize: '14px', fontWeight: 'bold' }}>{phone ? `${phone}@phonemail.local` : 'your-number@phonemail.local'}</p>
+              <p style={{ color: 'var(--primary)', fontSize: '14px', fontWeight: 'bold' }}>{phone ? `${phone}@phonemail.app` : 'your-number@phonemail.app'}</p>
             </div>
 
             {error && <div className="error-message" style={{ marginBottom: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#ef4444', fontSize: '14px' }}>{error}</div>}

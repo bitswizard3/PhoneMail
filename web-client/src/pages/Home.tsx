@@ -66,6 +66,10 @@ const Home: React.FC = () => {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Modals state
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
   // Message selection state
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -86,7 +90,11 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     const handleBackButton = async () => {
-      if (isSelectMode) {
+      if (showAboutModal) {
+        setShowAboutModal(false);
+      } else if (showHelpModal) {
+        setShowHelpModal(false);
+      } else if (isSelectMode) {
         setIsSelectMode(false);
         setSelectedMessages(new Set());
       } else if (showNewChat) {
@@ -106,7 +114,7 @@ const Home: React.FC = () => {
     return () => {
       listener.then(l => l.remove());
     };
-  }, [isSelectMode, showNewChat, isMenuOpen, isExpandedCompose, activeThread]);
+  }, [showAboutModal, showHelpModal, isSelectMode, showNewChat, isMenuOpen, isExpandedCompose, activeThread]);
 
   const fetchEmails = async () => {
     try {
@@ -214,7 +222,7 @@ const Home: React.FC = () => {
       if (!phone.startsWith('+')) {
         phone = `+91${phone}`;
       }
-      targetEmail = `${phone}@phonemail.local`;
+      targetEmail = `${phone}@phonemail.app`;
     }
 
     let existingThread = threads.find(t => t.contactEmail === targetEmail);
@@ -351,10 +359,10 @@ const Home: React.FC = () => {
                 <button className="hb-btn" onClick={() => { setIsMenuOpen(false); navigate('/settings'); }}>
                   <Settings size={20} color="var(--primary)" /> Settings
                 </button>
-                <button className="hb-btn" onClick={() => alert('PhoneMail v1.0\nBuilt for Hackathon 🚀\nYour phone is your email!')}>
+                <button className="hb-btn" onClick={() => { setIsMenuOpen(false); setShowAboutModal(true); }}>
                   <Info size={20} color="var(--primary)" /> About PhoneMail
                 </button>
-                <button className="hb-btn" onClick={() => alert('Need help? Contact support@phonemail.app')}>
+                <button className="hb-btn" onClick={() => { setIsMenuOpen(false); setShowHelpModal(true); }}>
                   <HelpCircle size={20} color="var(--primary)" /> Help & FAQ
                 </button>
               </div>
@@ -695,6 +703,51 @@ const Home: React.FC = () => {
               <button className="btn-cancel" onClick={() => setShowNewChat(false)}>Cancel</button>
               <button className="btn-start" onClick={handleStartNewChat}>Start Chat</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ABOUT MODAL */}
+      {showAboutModal && (
+        <div className="modal-overlay" onClick={() => setShowAboutModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ padding: '24px', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: '16px', maxWidth: '340px', width: '90%' }}>
+            <div style={{ width: '64px', height: '64px', background: 'linear-gradient(135deg, var(--primary), #a855f7)', borderRadius: '16px', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Info size={32} color="white" />
+            </div>
+            <h2 style={{ color: 'white', marginBottom: '8px', fontSize: '1.4rem' }}>About PhoneMail</h2>
+            <p style={{ color: 'var(--primary)', fontWeight: 'bold', marginBottom: '16px' }}>Version 1.0 (Hackathon Build) 🚀</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '24px', textAlign: 'left' }}>
+              PhoneMail is a revolutionary app that transforms your phone number into your email address. It combines the simplicity of WhatsApp with the power of email. 
+              <br/><br/>
+              <b>Your Email:</b> number@phonemail.app
+            </p>
+            <button className="btn-primary" onClick={() => setShowAboutModal(false)} style={{ width: '100%' }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* HELP MODAL */}
+      {showHelpModal && (
+        <div className="modal-overlay" onClick={() => setShowHelpModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ padding: '24px', background: 'var(--bg-secondary)', borderRadius: '16px', maxWidth: '340px', width: '90%' }}>
+            <h2 style={{ color: 'white', marginBottom: '20px', fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <HelpCircle color="var(--primary)" /> Help & FAQ
+            </h2>
+            <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '16px', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+              <div>
+                <b style={{ color: 'white' }}>How do I send an email?</b>
+                <div>Tap the '+' button, enter a phone number or email, and start chatting. It will be sent as a real email!</div>
+              </div>
+              <div>
+                <b style={{ color: 'white' }}>What is my email address?</b>
+                <div>Your email is your phone number followed by @phonemail.app.</div>
+              </div>
+              <div>
+                <b style={{ color: 'white' }}>How do I delete messages?</b>
+                <div>Long-press on any message to enter selection mode, then tap the trash icon at the top.</div>
+              </div>
+            </div>
+            <button className="btn-primary" onClick={() => setShowHelpModal(false)} style={{ width: '100%', marginTop: '24px' }}>Close</button>
           </div>
         </div>
       )}

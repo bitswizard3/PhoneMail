@@ -6,7 +6,7 @@ import { normalizePhone, initiateOutboundCall } from '../services/twilio';
 const router = Router();
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
-const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.local';
+const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.app';
 
 const phoneToEmail = (phone: string): string => {
   const cleaned = phone.replace(/[^0-9]/g, '');

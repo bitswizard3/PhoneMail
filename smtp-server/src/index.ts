@@ -13,7 +13,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://phonemail:phonemail_secret_2026@localhost:5432/phonemail_db',
 });
 
-const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.local';
+const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.app';
 
 /**
  * Process incoming email and store in database
