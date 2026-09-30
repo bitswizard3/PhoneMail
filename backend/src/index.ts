@@ -69,15 +69,17 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 // Bind to 0.0.0.0 so the server is reachable from other devices on the
 // same network (fixes MacBook / mobile same-WiFi issue)
-app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`
-  ╔══════════════════════════════════════════╗
-  ║   📧 PhoneMail Backend API              ║
-  ║   Running on port ${PORT}                  ║
-  ║   Listening on 0.0.0.0 (all interfaces) ║
-  ║   Environment: ${process.env.NODE_ENV || 'development'}           ║
-  ╚══════════════════════════════════════════╝
-  `);
-});
+if (!process.env.VERCEL) {
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`
+    ╔══════════════════════════════════════════╗
+    ║   📧 PhoneMail Backend API              ║
+    ║   Running on port ${PORT}                  ║
+    ║   Listening on 0.0.0.0 (all interfaces) ║
+    ║   Environment: ${process.env.NODE_ENV || 'development'}           ║
+    ╚══════════════════════════════════════════╝
+    `);
+  });
+}
 
 export default app;
