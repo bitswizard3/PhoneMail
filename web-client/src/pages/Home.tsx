@@ -385,11 +385,18 @@ const Home: React.FC = () => {
   const handlePickContact = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        const result = await Contacts.pickContact({
-          projection: { name: true, phones: true }
-        });
-        if (result.contact && result.contact.phones && result.contact.phones.length > 0) {
-          setNewChatInput(result.contact.phones[0].number?.replace(/[^0-9+]/g, '') || '');
+        const perm = await Contacts.requestPermissions();
+        if (perm.contacts === 'granted') {
+          const result = await Contacts.pickContact({
+            projection: { name: true, phones: true }
+          });
+          if (result.contact && result.contact.phones && result.contact.phones.length > 0) {
+            setNewChatInput(result.contact.phones[0].number?.replace(/[^0-9+]/g, '') || '');
+          } else {
+            alert('No phone number found in the selected contact.');
+          }
+        } else {
+          alert('Contact permission is required to pick a contact.');
         }
       } else if ('contacts' in navigator && 'ContactsManager' in window) {
         const contacts = await (navigator as any).contacts.select(['name', 'tel'], { multiple: false });
@@ -399,8 +406,8 @@ const Home: React.FC = () => {
       } else {
         alert('Contact picking is only supported on Chrome Android or native app. Please type manually.');
       }
-    } catch (ex) {
-      console.error(ex);
+    } catch (ex: any) {
+      alert('Error picking contact: ' + (ex.message || JSON.stringify(ex)));
     }
   };
 

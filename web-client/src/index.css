@@ -78,6 +78,15 @@ body {
   line-height: 1.5;
   overflow: hidden;
   height: 100dvh;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+input, textarea {
+  -webkit-user-select: auto;
+  user-select: auto;
 }
 
 #root {
