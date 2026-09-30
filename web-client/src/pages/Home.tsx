@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { emailAPI } from '../services/api';
 import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X, User, Trash2 } from 'lucide-react';
+import { App } from '@capacitor/app';
 
 interface Email {
   id: string;
@@ -75,6 +76,27 @@ const Home: React.FC = () => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [activeThread?.messages, isExpandedCompose]);
+
+  useEffect(() => {
+    const handleBackButton = async () => {
+      if (showNewChat) {
+        setShowNewChat(false);
+      } else if (isMenuOpen) {
+        setIsMenuOpen(false);
+      } else if (isExpandedCompose) {
+        setIsExpandedCompose(false);
+      } else if (activeThread) {
+        setActiveThread(null);
+      } else {
+        App.minimizeApp();
+      }
+    };
+    
+    const listener = App.addListener('backButton', handleBackButton);
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, [showNewChat, isMenuOpen, isExpandedCompose, activeThread]);
 
   const fetchEmails = async () => {
     try {
@@ -284,14 +306,20 @@ const Home: React.FC = () => {
       {/* LEFT PANE */}
       <div className="thread-list-pane">
         <div className="hybrid-header">
-          <h2>
-            <button className="icon-btn" onClick={() => setIsMenuOpen(true)} style={{ marginRight: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button className="icon-btn" onClick={() => setIsMenuOpen(true)} style={{ border: 'none', background: 'transparent' }} title="Menu">
               <Menu size={24} color="var(--primary)" />
             </button>
-            Chats
-          </h2>
+            <h2 style={{ margin: 0 }}>Chats</h2>
+          </div>
           <div className="header-actions">
-            <button className="icon-btn" onClick={() => setIsMenuOpen(true)} title="Menu">
+            <button className="icon-btn" onClick={() => navigate('/settings')} title="Settings">
+              <Settings size={20} />
+            </button>
+            <button className="icon-btn" onClick={() => { logout(); navigate('/login'); }} title="Logout">
+              <LogOut size={20} />
+            </button>
+            <button className="icon-btn" onClick={() => setIsMenuOpen(true)} title="Profile">
               <div className="sidebar-avatar-small">{getInitials(user?.email || '')}</div>
             </button>
           </div>
