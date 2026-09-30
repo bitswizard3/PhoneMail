@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, ArrowRight, Shield, PhoneCall, PhoneOff, Globe, CheckCircle, Settings, Check } from 'lucide-react';
 import { authAPI } from '../services/api';
+import { MessageReader } from '@solimanware/capacitor-sms-reader';
 
 type AuthStep = 'language' | 'terms' | 'phone' | 'otp';
 
@@ -89,19 +90,66 @@ const Auth: React.FC = () => {
   }, [otp]);
 
   useEffect(() => {
-    if (step === 'otp' && 'OTPCredential' in window) {
-      const abortController = new AbortController();
-      
-      navigator.credentials.get({
-        otp: { transport: ['sms'] },
-        signal: abortController.signal
-      } as any).then((otpObj: any) => {
-        if (otpObj && otpObj.code) {
-           setOtp(otpObj.code);
+    let intervalId: any;
+    
+    if (step === 'otp') {
+      const startSmsListener = async () => {
+        try {
+          // Check and ask for SMS read permissions
+          const perm = await MessageReader.checkPermissions();
+          if (perm.messages !== 'granted') {
+            await MessageReader.requestPermissions();
+          }
+          
+          // Poll the inbox every 2 seconds to auto-read the Twilio OTP
+          intervalId = setInterval(async () => {
+            try {
+              const result = await MessageReader.getMessages({
+                limit: 5
+              });
+              
+              if (result && result.messages) {
+                for (const msg of result.messages) {
+                  const body = msg.body || '';
+                  if (body.toLowerCase().includes('phonemail code is')) {
+                    const match = body.match(/\b\d{6}\b/);
+                    if (match) {
+                      setOtp(match[0]);
+                      clearInterval(intervalId);
+                      break;
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              console.error('SMS polling error:', e);
+            }
+          }, 2000);
+        } catch (err) {
+          console.error('SMS permission or reader error:', err);
         }
-      }).catch(err => console.log('WebOTP error:', err));
+      };
       
-      return () => abortController.abort();
+      startSmsListener();
+      
+      // Keep WebOTP for fallback / web browser
+      const abortController = new AbortController();
+      if ('OTPCredential' in window) {
+        navigator.credentials.get({
+          otp: { transport: ['sms'] },
+          signal: abortController.signal
+        } as any).then((otpObj: any) => {
+          if (otpObj && otpObj.code) {
+             setOtp(otpObj.code);
+             if (intervalId) clearInterval(intervalId);
+          }
+        }).catch(err => console.log('WebOTP error:', err));
+      }
+      
+      return () => {
+        if (intervalId) clearInterval(intervalId);
+        if ('OTPCredential' in window) abortController.abort();
+      };
     }
   }, [step]);
 
