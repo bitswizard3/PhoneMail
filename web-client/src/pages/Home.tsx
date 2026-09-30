@@ -585,7 +585,11 @@ const Home: React.FC = () => {
               <div 
                 key={thread.contactEmail} 
                 className={`thread-item ${activeThread?.contactEmail === thread.contactEmail ? 'active' : ''} ${selectedThreads.has(thread.contactEmail) ? 'msg-selected' : ''}`}
-                onClick={() => {
+                onClick={(e) => {
+                  if ((window as any).__ignoreNextClick) {
+                    (window as any).__ignoreNextClick = false;
+                    return;
+                  }
                   if (isThreadSelectMode) {
                     toggleSelectThread(thread.contactEmail);
                   } else {
@@ -599,6 +603,7 @@ const Home: React.FC = () => {
                 onTouchStart={() => {
                   if (!isThreadSelectMode) {
                     const timer = setTimeout(() => {
+                      (window as any).__ignoreNextClick = true;
                       setIsThreadSelectMode(true);
                       toggleSelectThread(thread.contactEmail);
                       if (navigator.vibrate) navigator.vibrate(50);
