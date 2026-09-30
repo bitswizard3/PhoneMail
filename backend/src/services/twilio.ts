@@ -56,7 +56,7 @@ export const sendOTP = async (phone: string): Promise<boolean> => {
   const toPhone = normalizePhone(phone);
 
   if (!isTwilioConfigured() || !verifyServiceSid) {
-    console.log(`📱 [MOCK OTP] OTP sent to ${toPhone} (use 123456)`);
+    console.log(`📱 [MOCK OTP] OTP sent to ${toPhone} (use 000011)`);
     return true;
   }
 
@@ -70,8 +70,8 @@ export const sendOTP = async (phone: string): Promise<boolean> => {
     return true;
   } catch (error: any) {
     console.error('❌ Failed to send Twilio Verify OTP:', error.message);
-    console.log(`📱 [MOCK OTP FALLBACK] Use 123456 for ${toPhone}`);
-    return true; // Don't block the UI, allow them to use 123456
+    console.log(`📱 [MOCK OTP FALLBACK] Use 000011 for ${toPhone}`);
+    return true; // Don't block the UI, allow them to use 000011
   }
 };
 
@@ -82,8 +82,8 @@ export const verifyOTP = async (phone: string, code: string): Promise<boolean> =
   const normalizedPhone = normalizePhone(phone);
 
   // Always accept the demo fallback code
-  if (code === '123456') {
-    console.log(`📱 [VERIFY] Accepted fallback code 123456 for ${normalizedPhone}`);
+  if (code === '000011') {
+    console.log(`📱 [VERIFY] Accepted fallback code 000011 for ${normalizedPhone}`);
     return true;
   }
 

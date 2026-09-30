@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { emailAPI } from '../services/api';
-import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X } from 'lucide-react';
+import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X, User, Trash2 } from 'lucide-react';
 
 interface Email {
   id: string;
@@ -218,11 +218,10 @@ const Home: React.FC = () => {
   };
 
   const getInitials = (name: string) => {
-    if (name.includes('@')) {
-      const parts = name.split('@')[0];
-      return parts.slice(-2).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
+    let cleanName = name.split('@')[0];
+    cleanName = cleanName.replace(/[^a-zA-Z]/g, '');
+    if (!cleanName) return <User size={20} />;
+    return cleanName.slice(0, 2).toUpperCase();
   };
 
   const formatTime = (dateStr: string) => {
@@ -353,12 +352,22 @@ const Home: React.FC = () => {
               <div className="thread-avatar" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
                 {getInitials(activeThread.contactName)}
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: '600', color: 'white' }}>{activeThread.contactName}</div>
                 {activeThread.contactName !== activeThread.contactEmail && (
                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{activeThread.contactEmail}</div>
                 )}
               </div>
+              <button 
+                className="icon-btn" 
+                title="Clear Chat" 
+                onClick={() => {
+                  alert("Chat Cleared! (Demo Feature)");
+                  setActiveThread(null);
+                }}
+              >
+                <Trash2 size={20} color="var(--danger, #ff4444)" />
+              </button>
             </div>
 
             <div className="room-messages">

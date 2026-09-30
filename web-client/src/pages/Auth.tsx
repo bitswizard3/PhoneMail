@@ -344,7 +344,7 @@ const Auth: React.FC = () => {
 
               {devHint && (
                 <div style={{ marginTop: '8px', color: 'var(--text-tertiary)', fontSize: '13px', textAlign: 'center' }}>
-                  {devHint}
+                  
                 </div>
               )}
 
@@ -375,7 +375,7 @@ const Auth: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => alert(`Fallback Demo OTP: 123456`)}
+                onClick={() => alert(`Fallback Demo OTP: 000011`)}
                 style={{ 
                   marginTop: '16px', width: '100%', padding: '4px', 
                   background: 'transparent', border: 'none', 
@@ -445,7 +445,7 @@ const Auth: React.FC = () => {
                     try {
                       const fullPhone = `${countryCode}${phone.replace(/\\s/g, '')}`;
                       // Auto-login after successful activation
-                      const verifyRes = await authAPI.verifyOTP(fullPhone, '123456');
+                      const verifyRes = await authAPI.verifyOTP(fullPhone, '000011');
                       if (verifyRes.data.token) {
                         localStorage.setItem('phonemail_token', verifyRes.data.token);
                         localStorage.setItem('phonemail_user', JSON.stringify(verifyRes.data.user));

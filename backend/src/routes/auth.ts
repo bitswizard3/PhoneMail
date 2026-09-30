@@ -208,7 +208,7 @@ router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
       message: 'OTP sent successfully',
       isNewUser,
       // In dev mode, hint the OTP code
-      ...(process.env.NODE_ENV !== 'production' && { devHint: 'Use OTP: 123456' }),
+      ...(process.env.NODE_ENV !== 'production' && { devHint: 'Use OTP: 000011' }),
     });
   } catch (error: any) {
     console.error('❌ Send OTP error:', error);
