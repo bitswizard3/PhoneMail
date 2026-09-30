@@ -192,21 +192,20 @@ const Home: React.FC = () => {
     // 1. Optimistic UI Update - Instant UX
     const optimisticMessage: any = {
       id: `temp-${Date.now()}`,
-      thread_id: activeThread.id || 'temp',
+      thread_id: 'temp',
       sender_email: user?.email || '',
       subject: subject,
       body: messageText,
       snippet: messageText.substring(0, 50),
       created_at: new Date().toISOString(),
       is_read: true,
-      recipients: toList.map(email => ({ email, is_read: false }))
+      recipients: toList.map(email => ({ recipient_email: email, is_read: false }))
     };
 
     const updatedThread = {
       ...activeThread,
       messages: [...activeThread.messages, optimisticMessage],
-      lastMessageSnippet: optimisticMessage.snippet,
-      lastMessageDate: optimisticMessage.created_at
+      lastMessageAt: optimisticMessage.created_at
     };
 
     setActiveThread(updatedThread);
