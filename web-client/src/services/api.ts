@@ -1,6 +1,27 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+/**
+ * Auto-detect API URL based on current browser location.
+ * This solves the problem where a hardcoded IP in .env fails on
+ * different networks (MacBook, phone, different WiFi, etc.)
+ * 
+ * Logic:
+ * - If VITE_API_URL is set and NOT a specific LAN IP, use it.
+ * - Otherwise, dynamically construct the API URL using the browser's
+ *   current hostname (works for localhost AND LAN IP access).
+ */
+const getApiUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  
+  if (envUrl) {
+    return envUrl;
+  }
+  
+  // Use relative path so it routes through Nginx or Vite proxy
+  return '/api';
+};
+
+const API_URL = getApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -41,6 +62,10 @@ export const authAPI = {
     api.post('/auth/send-otp', { phone, method: 'web' }),
   verifyOTP: (phone: string, code: string) =>
     api.post('/auth/verify-otp', { phone, code }),
+  initiateCall: (phone: string, baseUrl: string) =>
+    api.post('/voice/initiate-call', { phone, baseUrl }),
+  simulateIVR: (phone: string) =>
+    api.post('/voice/simulate', { phone }),
   getMe: () => api.get('/auth/me'),
 };
 

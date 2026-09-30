@@ -2,8 +2,12 @@ import dotenv from 'dotenv';
 import { SMTPServer } from 'smtp-server';
 import { simpleParser, ParsedMail } from 'mailparser';
 import { Pool } from 'pg';
+import dns from 'node:dns';
 
 dotenv.config();
+
+// Force IPv4 DNS resolution first to fix Docker/WSL2 IPv6 timeout issues with Supabase
+dns.setDefaultResultOrder('ipv4first');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://phonemail:phonemail_secret_2026@localhost:5432/phonemail_db',

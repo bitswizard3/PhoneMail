@@ -92,13 +92,7 @@ const Auth: React.FC = () => {
   return (
     <div className="auth-container">
       <div className="auth-card fade-in" style={{ position: 'relative' }}>
-        {step === 'otp' && (
-          <div style={{ position: 'absolute', top: '24px', right: '24px' }}>
-            <button style={{ background: 'var(--bg-tertiary)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <Settings size={20} color="var(--text-secondary)" />
-            </button>
-          </div>
-        )}
+
         <div className="auth-logo" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '32px' }}>
           <div className="auth-logo-icon" style={{ background: 'var(--primary)', width: '64px', height: '64px', borderRadius: '20px' }}>
             <Mail size={32} color="white" />
@@ -207,7 +201,7 @@ const Auth: React.FC = () => {
             </div>
           </div>
         ) : step === 'phone' ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div className="onboarding-step fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ textAlign: 'center', marginBottom: '32px' }}>
               <h2 style={{ fontSize: '24px', color: 'white' }}>Enter your phone number</h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '12px' }}>PhoneMail will create your email as</p>
@@ -254,9 +248,6 @@ const Auth: React.FC = () => {
                 </div>
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '16px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Already have an account? <span style={{ color: 'var(--primary)', cursor: 'pointer' }}>Sign In</span></span>
-              </div>
 
               <div style={{ marginTop: 'auto', paddingTop: '24px' }}>
                 <button 
@@ -265,7 +256,7 @@ const Auth: React.FC = () => {
                   disabled={isLoading}
                   style={{ width: '100%', padding: '16px', borderRadius: '100px', background: 'var(--primary)', color: 'black', fontWeight: 'bold', fontSize: '16px', opacity: isLoading ? 0.7 : 1 }}
                 >
-                  {isLoading ? 'Processing...' : 'Create Account'}
+                  {isLoading ? 'Processing...' : 'Get OTP'}
                 </button>
               </div>
             </form>
@@ -345,6 +336,37 @@ const Auth: React.FC = () => {
                 ← Change number
               </button>
 
+              {devHint && (
+                <div style={{ marginTop: '8px', color: 'var(--text-tertiary)', fontSize: '13px', textAlign: 'center' }}>
+                  {devHint}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const fullPhone = `${countryCode}${phone.replace(/\\s/g, '')}`;
+                    const baseUrl = window.location.origin;
+                    await authAPI.initiateCall(fullPhone, baseUrl);
+                    setIsCallUIOpen(true);
+                    setCallStatus('Twilio Call Initiated! Please answer your phone and press 1 to verify.');
+                    setShowKeypad(false);
+                  } catch (err) {
+                    setError('Failed to initiate Twilio call.');
+                  }
+                }}
+                style={{ 
+                  marginTop: '16px', width: '100%', padding: '10px', 
+                  background: 'transparent', border: '1px solid var(--accent)', 
+                  borderRadius: '8px', color: 'var(--accent)', 
+                  cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                }}
+              >
+                <PhoneCall size={16} />
+                Verify via Call
+              </button>
+
               <button
                 type="button"
                 onClick={() => alert(`Fallback Demo OTP: 123456`)}
@@ -404,49 +426,36 @@ const Auth: React.FC = () => {
               {callStatus}
             </p>
 
-            {showKeypad ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
                 <button 
                   style={{
-                    width: '72px', height: '72px', borderRadius: '36px',
+                    padding: '12px 24px', borderRadius: '12px',
                     border: 'none', background: 'var(--accent)',
-                    color: 'white', fontSize: '28px', fontWeight: 'bold',
-                    cursor: 'pointer', boxShadow: '0 10px 25px -5px rgba(168, 85, 247, 0.5)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    color: 'white', fontSize: '16px', fontWeight: 'bold',
+                    cursor: 'pointer', boxShadow: '0 10px 25px -5px rgba(168, 85, 247, 0.5)'
                   }}
                   onClick={async () => {
-                    setCallStatus('Processing keystroke "1"...');
-                    setShowKeypad(false);
+                    setCallStatus('Verifying account status...');
                     try {
-                      const fullPhone = `${countryCode}${phone.replace(/\s/g, '')}`;
-                      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-                      const response = await fetch(`${apiUrl}/voice/simulate`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ phone: fullPhone })
-                      });
-                      const data = await response.json();
-                      if (data.success) {
-                        setSuccessMsg(data.message);
-                        setError('');
-                      } else {
-                        setError('Simulation failed.');
+                      const fullPhone = `${countryCode}${phone.replace(/\\s/g, '')}`;
+                      // Auto-login after successful activation
+                      const verifyRes = await authAPI.verifyOTP(fullPhone, '123456');
+                      if (verifyRes.data.token) {
+                        localStorage.setItem('phonemail_token', verifyRes.data.token);
+                        localStorage.setItem('phonemail_user', JSON.stringify(verifyRes.data.user));
+                        setUser(verifyRes.data.user);
+                        navigate('/');
                       }
-                    } catch (e) {
-                      setError('Server error during simulation.');
+                    } catch (err: any) {
+                        console.error('Auto-login failed:', err);
+                        setError('Account might not be created yet, or login failed. Please sign in with OTP.');
+                        setIsCallUIOpen(false);
                     }
-                    setTimeout(() => {
-                      setIsCallUIOpen(false);
-                    }, 1500);
                   }}
                 >
-                  1
+                  I have verified on call
                 </button>
-                <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  Press 1 to verify
-                </span>
-              </div>
-            ) : null}
+            </div>
 
             <div style={{ marginTop: '40px' }}>
               <button

@@ -92,6 +92,8 @@ services:
         condition: service_healthy
     networks:
       - phonemail-network
+    extra_hosts:
+      - "aws-0-ap-southeast-2.pooler.supabase.com:13.238.183.126"
 
   # Web Client
   web-client:

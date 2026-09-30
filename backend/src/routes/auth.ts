@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database';
 import redis from '../config/redis';
-import { sendOTP, verifyOTP, generateIVRResponse, isTwilioConfigured } from '../services/twilio';
+import { sendOTP, verifyOTP, generateIVRResponse, isTwilioConfigured, normalizePhone } from '../services/twilio';
 import { AuthRequest, authMiddleware } from '../middleware/auth';
 
 const router = Router();
@@ -11,6 +11,14 @@ const router = Router();
 const SMTP_DOMAIN = process.env.SMTP_DOMAIN || 'phonemail.local';
 const JWT_SECRET = process.env.JWT_SECRET || 'alphastack-phonemail-jwt-secret-key-2026';
 const JWT_EXPIRES_IN = 604800; // 7 days in seconds
+
+/**
+ * Helper: extract 10-digit number from any phone input
+ */
+const phoneToEmail = (phone: string): string => {
+  const cleaned = phone.replace(/[^0-9]/g, '');
+  return `${cleaned.slice(-10)}@${SMTP_DOMAIN}`;
+};
 
 /**
  * POST /api/auth/register
@@ -25,41 +33,36 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const normalizedPhone = normalizePhone(phone);
+    const email = phoneToEmail(normalizedPhone);
+
     // Check if user already exists
-    const existingUser = await pool.query('SELECT id FROM users WHERE phone = $1', [phone]);
+    const existingUser = await pool.query('SELECT id FROM users WHERE phone = $1 OR email = $2', [normalizedPhone, email]);
     if (existingUser.rows.length > 0) {
       res.status(409).json({ error: 'Account with this phone number already exists' });
       return;
     }
 
-    // Generate email from phone number
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const email = `${cleanPhone.slice(-10)}@${SMTP_DOMAIN}`;
-
     // If using OTP-based auth
-    if (!password && isTwilioConfigured()) {
-      const sent = await sendOTP(phone);
+    if (!password) {
+      const sent = await sendOTP(normalizedPhone);
       if (!sent) {
         res.status(500).json({ error: 'Failed to send OTP' });
         return;
       }
-      // Store pending registration in Redis
-      await redis.setex(`pending_reg:${phone}`, 600, JSON.stringify({ phone, email, method }));
+      // Store pending registration in memory store
+      await redis.setex(`pending_reg:${normalizedPhone}`, 600, JSON.stringify({ phone: normalizedPhone, email, method }));
       res.json({ message: 'OTP sent', requiresOTP: true, email });
       return;
     }
 
     // Password-based auth
-    if (!password) {
-      res.status(400).json({ error: 'Password is required (Twilio not configured for OTP)' });
-      return;
-    }
-
+    const cleanPhone = normalizedPhone.replace(/[^0-9]/g, '');
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await pool.query(
       `INSERT INTO users (phone, email, password_hash, display_name, registration_method)
        VALUES ($1, $2, $3, $4, $5) RETURNING id, phone, email, display_name, created_at`,
-      [phone, email, passwordHash, cleanPhone, method]
+      [normalizedPhone, email, passwordHash, cleanPhone.slice(-10), method]
     );
 
     const user = result.rows[0];
@@ -98,14 +101,14 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const isValid = await verifyOTP(phone, code);
+    const normalizedPhone = normalizePhone(phone);
+    const email = phoneToEmail(normalizedPhone);
+
+    const isValid = await verifyOTP(normalizedPhone, code);
     if (!isValid) {
       res.status(400).json({ error: 'Invalid OTP' });
       return;
     }
-
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const email = `${cleanPhone.slice(-10)}@${SMTP_DOMAIN}`;
 
     // Check if user already exists using the normalized email
     const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -135,17 +138,17 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
     }
 
     // New user — auto-create account
-    // Check which method was stored, default to 'web'
-    const pendingData = await redis.get(`pending_reg:${phone}`);
+    const pendingData = await redis.get(`pending_reg:${normalizedPhone}`);
     const method = pendingData ? JSON.parse(pendingData).method || 'web' : 'web';
+    const cleanPhone = normalizedPhone.replace(/[^0-9]/g, '');
 
     const result = await pool.query(
       `INSERT INTO users (phone, email, display_name, registration_method)
        VALUES ($1, $2, $3, $4) RETURNING id, phone, email, display_name, created_at`,
-      [phone, email, cleanPhone, method]
+      [normalizedPhone, email, cleanPhone.slice(-10), method]
     );
 
-    if (pendingData) await redis.del(`pending_reg:${phone}`);
+    if (pendingData) await redis.del(`pending_reg:${normalizedPhone}`);
 
     const user = result.rows[0];
     const token = jwt.sign(
@@ -183,18 +186,19 @@ router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const normalizedPhone = normalizePhone(phone);
+    const email = phoneToEmail(normalizedPhone);
+
     // Check if user exists
-    const existingUser = await pool.query('SELECT id FROM users WHERE phone = $1', [phone]);
+    const existingUser = await pool.query('SELECT id FROM users WHERE phone = $1 OR email = $2', [normalizedPhone, email]);
     const isNewUser = existingUser.rows.length === 0;
 
-    // Store registration intent in Redis (for tracking method)
+    // Store registration intent in memory store (for tracking method)
     if (isNewUser) {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      const email = `${cleanPhone.slice(-10)}@${SMTP_DOMAIN}`;
-      await redis.setex(`pending_reg:${phone}`, 600, JSON.stringify({ phone, email, method }));
+      await redis.setex(`pending_reg:${normalizedPhone}`, 600, JSON.stringify({ phone: normalizedPhone, email, method }));
     }
 
-    const sent = await sendOTP(phone);
+    const sent = await sendOTP(normalizedPhone);
     if (!sent) {
       res.status(500).json({ error: 'Failed to send OTP' });
       return;
@@ -206,9 +210,9 @@ router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
       // In dev mode, hint the OTP code
       ...(process.env.NODE_ENV !== 'production' && { devHint: 'Use OTP: 123456' }),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Send OTP error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error', stack: error.stack });
   }
 });
 
@@ -225,7 +229,10 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const result = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
+    const normalizedPhone = normalizePhone(phone);
+    const email = phoneToEmail(normalizedPhone);
+
+    const result = await pool.query('SELECT * FROM users WHERE phone = $1 OR email = $2', [normalizedPhone, email]);
     if (result.rows.length === 0) {
       res.status(404).json({ error: 'Account not found' });
       return;
@@ -246,7 +253,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       }
     } else {
       // OTP-based login
-      const sent = await sendOTP(phone);
+      const sent = await sendOTP(normalizedPhone);
       if (!sent) {
         res.status(500).json({ error: 'Failed to send OTP' });
         return;
@@ -298,16 +305,17 @@ router.post('/ivr-confirm', async (req: Request, res: Response): Promise<void> =
     const callerPhone = req.body.From;
 
     if (digit === '1' && callerPhone) {
-      const cleanPhone = callerPhone.replace(/[^0-9]/g, '');
-      const email = `${cleanPhone.slice(-10)}@${SMTP_DOMAIN}`;
+      const normalizedPhone = normalizePhone(callerPhone);
+      const email = phoneToEmail(normalizedPhone);
 
       // Check if already exists
-      const existing = await pool.query('SELECT id FROM users WHERE phone = $1', [callerPhone]);
+      const existing = await pool.query('SELECT id FROM users WHERE phone = $1', [normalizedPhone]);
       if (existing.rows.length === 0) {
+        const cleanPhone = normalizedPhone.replace(/[^0-9]/g, '');
         await pool.query(
           `INSERT INTO users (phone, email, display_name, registration_method)
            VALUES ($1, $2, $3, 'ivr')`,
-          [callerPhone, email, cleanPhone]
+          [normalizedPhone, email, cleanPhone.slice(-10)]
         );
       }
 
