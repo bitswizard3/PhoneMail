@@ -292,7 +292,7 @@ const Auth: React.FC = () => {
               <div className="input-group">
                 <label>OTP Code</label>
                 <input
-                  type="text"
+                  type="text" inputMode="numeric" autoComplete="one-time-code"
                   placeholder="Enter 6-digit OTP"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
