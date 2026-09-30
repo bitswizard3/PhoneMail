@@ -51,38 +51,28 @@ const getClient = (): twilio.Twilio => {
 export const sendOTP = async (phone: string): Promise<boolean> => {
   const toPhone = normalizePhone(phone);
 
-  // Generate 6 digit OTP
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  
-  // Store in memory/redis for 5 minutes
-  await redis.setex(`otp:${toPhone}`, 300, otpCode);
-
-  if (!isTwilioConfigured() || !twilioPhone) {
-    console.log(`📱 [MOCK OTP] OTP sent to ${toPhone}: ${otpCode}`);
+  if (!isTwilioConfigured() || !verifyServiceSid) {
+    console.log(`📱 [MOCK OTP] OTP sent to ${toPhone} (use 000011)`);
     return true;
   }
 
   try {
     const twilioClient = getClient();
-    const message = `Your PhoneMail code is ${otpCode}.\n\n@phonemail.app #${otpCode}`;
-    
-    await twilioClient.messages.create({
-      body: message,
-      from: twilioPhone,
-      to: toPhone,
-    });
+    await twilioClient.verify.v2.services(verifyServiceSid)
+      .verifications
+      .create({ to: toPhone, channel: 'sms' });
       
-    console.log(`📱 Twilio Programmable SMS OTP sent to ${toPhone}`);
+    console.log(`📱 Twilio Verify OTP sent to ${toPhone}`);
     return true;
   } catch (error: any) {
-    console.error('❌ Failed to send Twilio SMS OTP:', error.message);
-    console.log(`📱 [MOCK OTP FALLBACK] Use ${otpCode} for ${toPhone}`);
-    return true; 
+    console.error('❌ Failed to send Twilio Verify OTP:', error.message);
+    console.log(`📱 [MOCK OTP FALLBACK] Use 000011 for ${toPhone}`);
+    return true; // Don't block the UI, allow them to use 000011
   }
 };
 
 /**
- * Verify OTP
+ * Verify OTP via Twilio Verify API
  */
 export const verifyOTP = async (phone: string, code: string): Promise<boolean> => {
   const normalizedPhone = normalizePhone(phone);
@@ -93,16 +83,27 @@ export const verifyOTP = async (phone: string, code: string): Promise<boolean> =
     return true;
   }
 
-  const storedOtp = await redis.get(`otp:${normalizedPhone}`);
-  
-  if (storedOtp && storedOtp === code) {
-    console.log(`📱 [VERIFY] OTP code verified for ${normalizedPhone}`);
-    await redis.del(`otp:${normalizedPhone}`);
-    return true;
+  if (!isTwilioConfigured() || !verifyServiceSid) {
+    return false;
   }
-  
-  console.log(`📱 [VERIFY] Failed verification for ${normalizedPhone}`);
-  return false;
+
+  try {
+    const twilioClient = getClient();
+    const verificationCheck = await twilioClient.verify.v2.services(verifyServiceSid)
+      .verificationChecks
+      .create({ to: normalizedPhone, code });
+
+    if (verificationCheck.status === 'approved') {
+      console.log(`📱 [VERIFY] OTP code verified for ${normalizedPhone}`);
+      return true;
+    }
+    
+    console.log(`📱 [VERIFY] Failed verification for ${normalizedPhone}. Status: ${verificationCheck.status}`);
+    return false;
+  } catch (error: any) {
+    console.error('❌ Failed to verify Twilio OTP:', error.message);
+    return false;
+  }
 };
 
 /**

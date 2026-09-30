@@ -365,30 +365,6 @@ const Auth: React.FC = () => {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const fullPhone = `${countryCode}${phone.replace(/\\s/g, '')}`;
-                    const baseUrl = window.location.origin;
-                    await authAPI.initiateCall(fullPhone, baseUrl);
-                    setIsCallUIOpen(true);
-                    setCallStatus('Twilio Call Initiated! Please answer your phone and press 1 to verify.');
-                    setShowKeypad(false);
-                  } catch (err) {
-                    setError('Failed to initiate Twilio call.');
-                  }
-                }}
-                style={{ 
-                  marginTop: '16px', width: '100%', padding: '10px', 
-                  background: 'transparent', border: '1px solid var(--accent)', 
-                  borderRadius: '8px', color: 'var(--accent)', 
-                  cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-                }}
-              >
-                <PhoneCall size={16} />
-                Verify via Call
-              </button>
 
               <button
                 type="button"
