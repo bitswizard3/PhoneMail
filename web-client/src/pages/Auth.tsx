@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, ArrowRight, Shield, PhoneCall, PhoneOff, Globe, CheckCircle, Settings, Check } from 'lucide-react';
 import { authAPI } from '../services/api';
-import { AndroidSmsRetriever } from '@capgo/capacitor-android-sms-retriever';
+import { AndroidSmsRetriever } from '@capawesome/capacitor-android-sms-retriever';
 
 type AuthStep = 'language' | 'terms' | 'phone' | 'otp';
 
@@ -90,52 +90,49 @@ const Auth: React.FC = () => {
   }, [otp]);
 
   useEffect(() => {
-    let listener: any;
-    
+    let abortController: AbortController;
+    let isSubscribed = true;
+
     if (step === 'otp') {
-      const setupRetriever = async () => {
+      const startSmsConsent = async () => {
         try {
-          // Listen for the SMS
-          listener = await AndroidSmsRetriever.addListener('smsReceived', (event: any) => {
-            const body = event.message || '';
-            const match = body.match(/\b\d{6}\b/);
+          // This will trigger the Android SMS User Consent bottom sheet
+          // WITHOUT needing the READ_SMS permission OR the app hash!
+          console.log('📱 Starting SMS User Consent API...');
+          const { message } = await AndroidSmsRetriever.retrieveSms();
+          
+          if (isSubscribed && message) {
+            console.log('📱 Received SMS:', message);
+            const match = message.match(/\b\d{6}\b/);
             if (match) {
               setOtp(match[0]);
             }
-          });
-          
-          // Log app hash for debugging so user knows what to append to SMS if possible
-          const { hash } = await AndroidSmsRetriever.getHashString();
-          console.log('📱 App Hash for SMS Retriever:', hash);
-          
-          // Start the retriever
-          await AndroidSmsRetriever.startWatch();
+          }
         } catch (e) {
-          console.log('SmsRetriever not supported or failed', e);
+          console.log('📱 SmsUserConsent not supported or timed out', e);
         }
       };
-      
-      setupRetriever();
-      
+
+      startSmsConsent();
+
       // Keep WebOTP for fallback / web browser
-      const abortController = new AbortController();
+      abortController = new AbortController();
       if ('OTPCredential' in window) {
         navigator.credentials.get({
           otp: { transport: ['sms'] },
           signal: abortController.signal
         } as any).then((otpObj: any) => {
-          if (otpObj && otpObj.code) {
+          if (isSubscribed && otpObj && otpObj.code) {
              setOtp(otpObj.code);
           }
         }).catch(err => console.log('WebOTP error:', err));
       }
-      
-      return () => {
-        if (listener && listener.remove) listener.remove();
-        AndroidSmsRetriever.stopWatch().catch(() => {});
-        if ('OTPCredential' in window) abortController.abort();
-      };
     }
+
+    return () => {
+      isSubscribed = false;
+      if (abortController) abortController.abort();
+    };
   }, [step]);
 
   const handleBack = () => {

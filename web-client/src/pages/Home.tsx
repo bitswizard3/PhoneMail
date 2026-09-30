@@ -495,9 +495,17 @@ const Home: React.FC = () => {
                   <button 
                     className="icon-btn" 
                     title="Clear Chat" 
-                    onClick={() => {
-                      alert("Chat Cleared! (Demo Feature)");
+                    onClick={async () => {
+                      if (!window.confirm("Are you sure you want to clear this chat?")) return;
+                      const threadToDelete = activeThread;
+                      setThreads(prev => prev.filter(t => t.contactEmail !== threadToDelete.contactEmail));
                       setActiveThread(null);
+                      try {
+                        const promises = threadToDelete.messages.map(msg => emailAPI.deleteEmail(msg.id));
+                        await Promise.all(promises);
+                      } catch (err) {
+                        console.error("Failed to delete all messages", err);
+                      }
                     }}
                     style={{ background: 'transparent', border: 'none' }}
                   >

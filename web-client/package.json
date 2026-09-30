@@ -21,7 +21,7 @@
     "@capacitor/app": "^8.1.1",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",
-    "@capgo/capacitor-android-sms-retriever": "^8.0.12",
+    "@capawesome/capacitor-android-sms-retriever": "^0.1.2",
     "@fontsource/inter": "^5.3.0",
     "axios": "^1.20.0",
     "lucide-react": "^1.47.0",
