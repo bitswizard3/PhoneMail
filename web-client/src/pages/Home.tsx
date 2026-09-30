@@ -595,14 +595,13 @@ const Home: React.FC = () => {
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  setIsThreadSelectMode(true);
-                  toggleSelectThread(thread.contactEmail);
                 }}
                 onTouchStart={() => {
                   if (!isThreadSelectMode) {
                     const timer = setTimeout(() => {
                       setIsThreadSelectMode(true);
                       toggleSelectThread(thread.contactEmail);
+                      if (navigator.vibrate) navigator.vibrate(50);
                     }, 500);
                     (window as any).__longPressThreadTimer = timer;
                   }
