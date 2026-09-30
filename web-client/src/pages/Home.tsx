@@ -306,11 +306,11 @@ const Home: React.FC = () => {
       
       {/* SIDEBAR OVERLAY */}
       {isMenuOpen && (
-        <div className="sidebar-overlay" onClick={() => setIsMenuOpen(false)}>
-          <div className="sidebar-menu" onClick={e => e.stopPropagation()}>
-            <div className="sidebar-header">
-              <div className="sidebar-avatar">{getInitials(user?.email || '')}</div>
-              <div className="sidebar-user-info">
+        <div className="hb-overlay" onClick={() => setIsMenuOpen(false)}>
+          <div className="hb-menu" onClick={e => e.stopPropagation()}>
+            <div className="hb-header">
+              <div className="hb-avatar">{getInitials(user?.email || '')}</div>
+              <div className="hb-user-info">
                 <h3>{(user?.email || '').split('@')[0]}</h3>
                 <p>{user?.email}</p>
               </div>
@@ -319,19 +319,19 @@ const Home: React.FC = () => {
               </button>
             </div>
             
-            <div className="sidebar-content">
+            <div className="hb-content">
               {/* Profile Section */}
-              <div className="sidebar-section">
-                <button className="sidebar-btn" onClick={() => { setIsMenuOpen(false); navigate('/settings'); }}>
+              <div className="hb-section">
+                <button className="hb-btn" onClick={() => { setIsMenuOpen(false); navigate('/settings'); }}>
                   <User size={20} color="var(--primary)" /> My Profile
                 </button>
-                <button className="sidebar-btn" onClick={() => { setIsMenuOpen(false); setSearchQuery(''); }}>
+                <button className="hb-btn" onClick={() => { setIsMenuOpen(false); setSearchQuery(''); }}>
                   <Search size={20} color="var(--primary)" /> Search Chats
                 </button>
               </div>
 
               {/* Theme Section */}
-              <div className="sidebar-section">
+              <div className="hb-section">
                 <h4><Palette size={16} /> Theme Color</h4>
                 <div className="theme-picker">
                   {THEMES.map(theme => (
@@ -347,20 +347,20 @@ const Home: React.FC = () => {
               </div>
 
               {/* Menu Options */}
-              <div className="sidebar-section">
-                <button className="sidebar-btn" onClick={() => { setIsMenuOpen(false); navigate('/settings'); }}>
+              <div className="hb-section">
+                <button className="hb-btn" onClick={() => { setIsMenuOpen(false); navigate('/settings'); }}>
                   <Settings size={20} color="var(--primary)" /> Settings
                 </button>
-                <button className="sidebar-btn" onClick={() => alert('PhoneMail v1.0\nBuilt for Hackathon 🚀\nYour phone is your email!')}>
+                <button className="hb-btn" onClick={() => alert('PhoneMail v1.0\nBuilt for Hackathon 🚀\nYour phone is your email!')}>
                   <Info size={20} color="var(--primary)" /> About PhoneMail
                 </button>
-                <button className="sidebar-btn" onClick={() => alert('Need help? Contact support@phonemail.app')}>
+                <button className="hb-btn" onClick={() => alert('Need help? Contact support@phonemail.app')}>
                   <HelpCircle size={20} color="var(--primary)" /> Help & FAQ
                 </button>
               </div>
 
-              <div className="sidebar-actions">
-                <button className="sidebar-btn logout-btn" onClick={() => { logout(); navigate('/login'); }}>
+              <div className="hb-actions">
+                <button className="hb-btn hb-logout" onClick={() => { logout(); navigate('/login'); }}>
                   <LogOut size={20} /> Logout
                 </button>
               </div>
@@ -380,7 +380,7 @@ const Home: React.FC = () => {
           </div>
           <div className="header-actions">
             <button className="icon-btn" onClick={() => setIsMenuOpen(true)} title="Profile">
-              <div className="sidebar-avatar-small">{getInitials(user?.email || '')}</div>
+              <div className="hb-avatar-small">{getInitials(user?.email || '')}</div>
             </button>
           </div>
         </div>
