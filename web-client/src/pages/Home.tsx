@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { emailAPI } from '../services/api';
-import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X, User, Trash2, Search, HelpCircle, Info, Forward, Edit2 } from 'lucide-react';
+import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X, User, Trash2, Search, HelpCircle, Info, Forward, Edit2, Copy } from 'lucide-react';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { Contacts } from '@capacitor-community/contacts';
@@ -682,6 +682,25 @@ const Home: React.FC = () => {
                       <Forward size={22} color="white" />
                     </button>
                   )}
+                  {selectedMessages.size > 0 && (
+                    <button 
+                      className="icon-btn" 
+                      onClick={() => {
+                        const textsToCopy = Array.from(selectedMessages).map(msgId => {
+                          const msg = activeThread.messages.find(m => m.id === msgId);
+                          return msg ? msg.body : '';
+                        }).filter(Boolean).join('\n\n');
+                        navigator.clipboard.writeText(textsToCopy).then(() => {
+                          setIsSelectMode(false);
+                          setSelectedMessages(new Set());
+                        });
+                      }}
+                      style={{ background: 'transparent', border: 'none', marginRight: '8px' }}
+                      title="Copy"
+                    >
+                      <Copy size={20} color="white" />
+                    </button>
+                  )}
                   <button 
                     className="icon-btn" 
                     title="Delete Selected" 
@@ -751,19 +770,23 @@ const Home: React.FC = () => {
                     <div 
                       key={msg.id || idx} 
                       className={`message-card ${isMine ? 'msg-sent' : 'msg-received'} ${isSelected ? 'msg-selected' : ''}`}
-                      onClick={() => isSelectMode && msg.id && toggleSelectMessage(msg.id)}
+                      onClick={(e) => {
+                        if ((window as any).__ignoreNextClickMsg) {
+                          (window as any).__ignoreNextClickMsg = false;
+                          return;
+                        }
+                        if (isSelectMode && msg.id) toggleSelectMessage(msg.id);
+                      }}
                       onContextMenu={(e) => {
                         e.preventDefault();
-                        if (msg.id) {
-                          setIsSelectMode(true);
-                          toggleSelectMessage(msg.id);
-                        }
                       }}
                       onTouchStart={() => {
                         if (!isSelectMode && msg.id) {
                           const timer = setTimeout(() => {
+                            (window as any).__ignoreNextClickMsg = true;
                             setIsSelectMode(true);
-                            toggleSelectMessage(msg.id);
+                            toggleSelectMessage(msg.id!);
+                            if (navigator.vibrate) navigator.vibrate(50);
                           }, 500);
                           (window as any).__longPressTimer = timer;
                         }
