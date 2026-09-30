@@ -46,6 +46,8 @@ const getClient = (): twilio.Twilio => {
   if (!client) {
     throw new Error('Twilio is not configured');
   }
+  return client;
+};
 export const sendOTP = async (phone: string): Promise<boolean> => {
   const toPhone = normalizePhone(phone);
 
