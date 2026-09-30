@@ -1,3 +1,4 @@
+@import './hybrid.css';
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/500.css';
 @import '@fontsource/inter/600.css';
@@ -1892,3 +1893,6 @@ input, textarea {
   background: var(--surface-hover) !important;
   transform: translateY(-2px);
 }
+
+@import './hybrid.css';
+

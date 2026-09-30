@@ -1,0 +1,63 @@
+/* ===================== HYBRID CHAT UI ===================== */
+.hybrid-layout { display: flex; height: 100dvh; width: 100vw; overflow: hidden; background: var(--bg-primary); }
+.thread-list-pane { width: 350px; background: var(--bg-primary); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; position: relative; }
+.thread-room-pane { flex: 1; display: flex; flex-direction: column; background: var(--bg-secondary); position: relative; }
+
+@media (max-width: 768px) { 
+  .hybrid-layout { flex-direction: column; } 
+  .thread-list-pane { width: 100%; height: 100%; display: flex; border-right: none; } 
+  .thread-room-pane { display: none; } 
+  .hybrid-layout.chat-active .thread-list-pane { display: none; } 
+  .hybrid-layout.chat-active .thread-room-pane { display: flex; flex: 1; } 
+}
+
+.hybrid-header { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-primary); }
+.hybrid-header h2 { margin: 0; font-size: 1.4rem; color: white; display: flex; align-items: center; gap: 10px; }
+.header-actions { display: flex; gap: 8px; }
+
+.thread-list-scroll { flex: 1; overflow-y: auto; }
+.thread-item { display: flex; align-items: center; padding: 16px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); transition: background 0.2s; }
+.thread-item:hover, .thread-item.active { background: var(--bg-hover); }
+.thread-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; color: var(--primary); font-weight: bold; font-size: 1.1rem; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-transform: uppercase; }
+.thread-info { margin-left: 14px; flex: 1; overflow: hidden; }
+.thread-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.thread-name { font-weight: 600; color: white; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.thread-time { font-size: 0.75rem; color: var(--text-tertiary); }
+.thread-preview { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.unread-badge { background: var(--primary); color: black; border-radius: 12px; padding: 2px 8px; font-size: 0.7rem; font-weight: bold; margin-left: 8px; }
+
+.fab-new-chat { position: absolute; bottom: 24px; right: 24px; width: 60px; height: 60px; border-radius: 50%; background: var(--primary); color: black; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-glow); cursor: pointer; transition: transform 0.2s; border: none; z-index: 20; }
+.fab-new-chat:hover { transform: scale(1.05); }
+
+.room-header { padding: 12px 20px; display: flex; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-primary); gap: 12px; }
+.back-btn { background: none; border: none; color: white; cursor: pointer; display: none; padding: 8px; margin-left: -8px; }
+@media (max-width: 768px) { .back-btn { display: block; } }
+
+.room-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; background: var(--bg-secondary); }
+.message-card { max-width: 85%; padding: 12px 16px; border-radius: 16px; position: relative; font-size: 0.95rem; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.15); word-wrap: break-word; }
+.msg-received { align-self: flex-start; background: var(--bg-elevated); color: white; border-bottom-left-radius: 4px; }
+.msg-sent { align-self: flex-end; background: var(--bg-active); border: 1px solid var(--border-active); color: white; border-bottom-right-radius: 4px; }
+.msg-subject { font-weight: 700; font-size: 0.85rem; color: var(--primary); margin-bottom: 4px; display: block; opacity: 0.9; }
+.msg-time { display: flex; justify-content: flex-end; align-items: center; font-size: 0.65rem; color: var(--text-tertiary); margin-top: 6px; gap: 4px; }
+.msg-time.sent-time { color: rgba(255,255,255,0.6); }
+
+.room-input-area { padding: 12px 20px; background: var(--bg-primary); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+.chat-input { flex: 1; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 24px; padding: 14px 20px; color: white; outline: none; font-size: 0.95rem; transition: border-color 0.2s; }
+.chat-input:focus { border-color: var(--primary); }
+.send-btn { width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: black; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s; flex-shrink: 0; }
+.send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Empty state */
+.empty-room { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-tertiary); }
+.empty-room svg { opacity: 0.3; margin-bottom: 16px; }
+
+/* Modal for New Chat */
+.new-chat-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+.new-chat-box { background: var(--bg-primary); width: 90%; max-width: 400px; border-radius: 16px; padding: 24px; border: 1px solid var(--border); box-shadow: var(--shadow-lg); }
+.new-chat-box h3 { margin-top: 0; color: white; margin-bottom: 16px; }
+.new-chat-box input { width: 100%; background: var(--bg-elevated); border: 1px solid var(--border); padding: 14px; border-radius: 8px; color: white; margin-bottom: 16px; outline: none; }
+.new-chat-box input:focus { border-color: var(--primary); }
+.new-chat-actions { display: flex; gap: 12px; justify-content: flex-end; }
+.btn-cancel { background: transparent; border: 1px solid var(--border); color: white; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+.btn-start { background: var(--primary); border: none; color: black; font-weight: bold; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
