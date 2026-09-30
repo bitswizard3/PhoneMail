@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { emailAPI } from '../services/api';
-import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, RefreshCw, MessageCircle, Maximize2, Minimize2 } from 'lucide-react';
+import { Send, ArrowLeft, Plus, Settings, LogOut, Check, CheckCheck, MessageCircle, Maximize2, Minimize2, Menu, Palette, Sparkles, Paperclip, X } from 'lucide-react';
 
 interface Email {
   id: string;
@@ -25,15 +25,32 @@ interface Thread {
   unreadCount: number;
 }
 
+const THEMES = [
+  { name: 'Cyan', color: '#00E5FF' },
+  { name: 'Pink', color: '#FF007F' },
+  { name: 'Green', color: '#00FF66' },
+  { name: 'Purple', color: '#B300FF' }
+];
+
+const QUICK_REPLIES = [
+  "Sounds good!",
+  "I'll get back to you.",
+  "Thanks!",
+  "Can we call?"
+];
+
 const Home: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [newMessageText, setNewMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
   
+  // Sidebar State
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeTheme, setActiveTheme] = useState(THEMES[0].color);
+
   // Expanded Compose State
   const [isExpandedCompose, setIsExpandedCompose] = useState(false);
   const [composeCc, setComposeCc] = useState('');
@@ -160,12 +177,10 @@ const Home: React.FC = () => {
     }
     
     let targetEmail = newChatInput.trim();
-    
-    // If it doesn't look like an email, assume it's a phone number
     if (!targetEmail.includes('@')) {
       let phone = targetEmail.replace(/[^0-9+]/g, '');
       if (!phone.startsWith('+')) {
-        phone = `+91${phone}`; // default IN
+        phone = `+91${phone}`;
       }
       targetEmail = `${phone}@phonemail.local`;
     }
@@ -215,19 +230,70 @@ const Home: React.FC = () => {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const changeTheme = (color: string) => {
+    setActiveTheme(color);
+    document.documentElement.style.setProperty('--primary', color);
+  };
+
   return (
     <div className={`hybrid-layout ${activeThread ? 'chat-active' : ''}`}>
       
+      {/* SIDEBAR OVERLAY */}
+      {isMenuOpen && (
+        <div className="sidebar-overlay" onClick={() => setIsMenuOpen(false)}>
+          <div className="sidebar-menu" onClick={e => e.stopPropagation()}>
+            <div className="sidebar-header">
+              <div className="sidebar-avatar">{getInitials(user?.name || user?.email || '')}</div>
+              <div className="sidebar-user-info">
+                <h3>{user?.name}</h3>
+                <p>{user?.email}</p>
+              </div>
+              <button className="icon-btn" onClick={() => setIsMenuOpen(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="sidebar-content">
+              <div className="sidebar-section">
+                <h4><Palette size={16} /> Theme Color</h4>
+                <div className="theme-picker">
+                  {THEMES.map(theme => (
+                    <button 
+                      key={theme.color}
+                      className={`theme-circle ${activeTheme === theme.color ? 'active' : ''}`}
+                      style={{ backgroundColor: theme.color }}
+                      onClick={() => changeTheme(theme.color)}
+                      title={theme.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="sidebar-actions">
+                <button className="sidebar-btn" onClick={() => { setIsMenuOpen(false); navigate('/settings'); }}>
+                  <Settings size={20} /> Account Settings
+                </button>
+                <button className="sidebar-btn logout-btn" onClick={() => { logout(); navigate('/login'); }}>
+                  <LogOut size={20} /> Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* LEFT PANE */}
       <div className="thread-list-pane">
         <div className="hybrid-header">
-          <h2><MessageCircle color="var(--primary)" size={24} /> Chats</h2>
-          <div className="header-actions">
-            <button className="icon-btn" onClick={() => navigate('/settings')} title="Settings">
-              <Settings size={20} />
+          <h2>
+            <button className="icon-btn" onClick={() => setIsMenuOpen(true)} style={{ marginRight: '8px' }}>
+              <Menu size={24} color="var(--primary)" />
             </button>
-            <button className="icon-btn" onClick={() => { logout(); navigate('/login'); }} title="Logout">
-              <LogOut size={20} />
+            Chats
+          </h2>
+          <div className="header-actions">
+            <button className="icon-btn" onClick={() => setIsMenuOpen(true)} title="Menu">
+              <div className="sidebar-avatar-small">{getInitials(user?.name || user?.email || '')}</div>
             </button>
           </div>
         </div>
@@ -304,6 +370,7 @@ const Home: React.FC = () => {
               ) : (
                 activeThread.messages.map((msg, idx) => {
                   const isMine = msg.sender_email === user?.email;
+                  const isReadByRecipient = msg.recipients?.some(r => r.is_read);
                   return (
                     <div key={msg.id || idx} className={`message-card ${isMine ? 'msg-sent' : 'msg-received'}`}>
                       {msg.subject && msg.subject !== 'PhoneMail Message' && msg.subject !== '(No Subject)' && (
@@ -313,7 +380,7 @@ const Home: React.FC = () => {
                       <div className={`msg-time ${isMine ? 'sent-time' : ''}`}>
                         {formatTime(msg.created_at)}
                         {isMine && (
-                          <CheckCheck size={14} color={msg.recipients?.some(r => r.is_read) ? 'var(--primary)' : 'currentColor'} />
+                          <CheckCheck size={16} color={isReadByRecipient ? 'var(--primary)' : 'rgba(255,255,255,0.4)'} />
                         )}
                       </div>
                     </div>
@@ -322,6 +389,24 @@ const Home: React.FC = () => {
               )}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Quick Replies - Smart Feature */}
+            {!isExpandedCompose && (
+              <div className="quick-replies-wrapper">
+                <Sparkles size={14} color="var(--primary)" style={{ marginLeft: '12px' }} />
+                <div className="quick-replies-scroll">
+                  {QUICK_REPLIES.map(reply => (
+                    <button 
+                      key={reply} 
+                      className="quick-reply-chip"
+                      onClick={() => setNewMessageText(reply)}
+                    >
+                      {reply}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {isExpandedCompose ? (
               <div className="expanded-compose">
@@ -365,11 +450,20 @@ const Home: React.FC = () => {
               <div className="room-input-area">
                 <button 
                   className="icon-btn" 
-                  title="Full Email Mode" 
+                  title="Expand Compose" 
                   onClick={() => setIsExpandedCompose(true)}
                 >
                   <Maximize2 size={20} color="var(--text-tertiary)" />
                 </button>
+                
+                <button 
+                  className="icon-btn" 
+                  title="Attach File" 
+                  onClick={() => alert("Attachment feature coming soon!")}
+                >
+                  <Paperclip size={20} color="var(--text-tertiary)" />
+                </button>
+
                 <input
                   type="text"
                   className="chat-input"
