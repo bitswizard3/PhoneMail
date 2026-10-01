@@ -104,6 +104,7 @@ const Home: React.FC = () => {
   // Message selection state
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
+  const [forwardMessageData, setForwardMessageData] = useState<Email | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -216,9 +217,14 @@ const Home: React.FC = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessageText.trim() || !activeThread) return;
+    let messageText = newMessageText.trim();
+    if (forwardMessageData) {
+      const fwText = `\n\n---------- Forwarded message ---------\nFrom: ${forwardMessageData.sender_name || forwardMessageData.sender_email}\nDate: ${new Date(forwardMessageData.created_at).toLocaleString()}\nSubject: ${forwardMessageData.subject || 'No Subject'}\n\n${forwardMessageData.body}`;
+      messageText = messageText ? `${messageText}${fwText}` : fwText.trim();
+    }
+
+    if (!messageText || !activeThread) return;
     
-    const messageText = newMessageText.trim();
     const toList = [activeThread.contactEmail];
     const ccList = composeCc ? composeCc.split(',').map((e) => e.trim()).filter(Boolean) : [];
     const bccList = composeBcc ? composeBcc.split(',').map((e) => e.trim()).filter(Boolean) : [];
@@ -250,6 +256,7 @@ const Home: React.FC = () => {
 
     // 2. Clear inputs instantly
     setNewMessageText('');
+    setForwardMessageData(null);
     if(isExpandedCompose) {
       setIsExpandedCompose(false);
       setComposeCc('');
@@ -556,6 +563,16 @@ const Home: React.FC = () => {
           )}
         </div>
 
+        {/* Forward Banner */}
+        {forwardMessageData && !isThreadSelectMode && (
+          <div style={{ padding: '8px 12px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+            <span style={{ fontWeight: 500 }}>Select chat to forward to</span>
+            <button className="icon-btn" onClick={() => setForwardMessageData(null)} style={{ border: 'none', background: 'transparent' }} title="Cancel Forward">
+              <X size={18} color="white" />
+            </button>
+          </div>
+        )}
+
         {/* Search Bar */}
         <div style={{ padding: '4px 12px', background: 'var(--bg-secondary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-elevated)', borderRadius: '24px', padding: '6px 14px' }}>
@@ -669,9 +686,8 @@ const Home: React.FC = () => {
                         const msgId = Array.from(selectedMessages)[0];
                         const msg = activeThread.messages.find(m => m.id === msgId);
                         if (msg) {
-                          const fwText = `\n\n---------- Forwarded message ---------\nFrom: ${msg.sender_name || msg.sender_email}\nDate: ${new Date(msg.created_at).toLocaleString()}\nSubject: ${msg.subject || 'No Subject'}\n\n${msg.body}`;
-                          setNewMessageText(fwText);
-                          setIsExpandedCompose(true);
+                          setForwardMessageData(msg);
+                          setActiveThread(null);
                           setIsSelectMode(false);
                           setSelectedMessages(new Set());
                         }
@@ -853,6 +869,31 @@ const Home: React.FC = () => {
               </div>
             )}
 
+            {forwardMessageData && (
+              <div style={{
+                backgroundColor: 'var(--bg-elevated)',
+                padding: '8px 12px',
+                margin: '0 12px 8px 12px',
+                borderRadius: '8px',
+                borderLeft: '4px solid var(--primary)',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative'
+              }}>
+                <button 
+                  onClick={() => setForwardMessageData(null)}
+                  style={{ position: 'absolute', top: '4px', right: '4px', background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}>
+                  <X size={16} />
+                </button>
+                <span style={{ fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '4px', fontWeight: 600 }}>
+                  Forwarded message
+                </span>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', paddingRight: '20px' }}>
+                  {forwardMessageData.body.length > 80 ? forwardMessageData.body.substring(0, 80) + '...' : forwardMessageData.body}
+                </span>
+              </div>
+            )}
+
             {isExpandedCompose ? (
               <div className="expanded-compose">
                 <div className="compose-field-row">
@@ -885,7 +926,7 @@ const Home: React.FC = () => {
                     className="send-btn" 
                     style={{ borderRadius: '8px', width: 'auto', padding: '0 24px' }}
                     onClick={handleSendMessage} 
-                    disabled={!newMessageText.trim() || isSending}
+                    disabled={!(newMessageText.trim() || forwardMessageData) || isSending}
                   >
                     <Send size={18} style={{ marginRight: '8px' }} /> Send Email
                   </button>
@@ -922,7 +963,7 @@ const Home: React.FC = () => {
                 <button 
                   className="send-btn" 
                   onClick={handleSendMessage} 
-                  disabled={!newMessageText.trim() || isSending}
+                  disabled={!(newMessageText.trim() || forwardMessageData) || isSending}
                 >
                   <Send size={20} style={{ marginLeft: '-2px' }} />
                 </button>
