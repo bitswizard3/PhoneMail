@@ -140,6 +140,8 @@ const Home: React.FC = () => {
         setIsExpandedCompose(false);
       } else if (activeThread) {
         setActiveThread(null);
+      } else if (forwardMessageData) {
+        setForwardMessageData(null);
       } else {
         App.minimizeApp();
       }
@@ -149,7 +151,7 @@ const Home: React.FC = () => {
     return () => {
       listener.then(l => l.remove());
     };
-  }, [showAboutModal, showHelpModal, isSelectMode, isThreadSelectMode, showNewChat, isMenuOpen, isExpandedCompose, activeThread]);
+  }, [showAboutModal, showHelpModal, isSelectMode, isThreadSelectMode, showNewChat, isMenuOpen, isExpandedCompose, activeThread, forwardMessageData]);
 
   const fetchEmails = async () => {
     try {
