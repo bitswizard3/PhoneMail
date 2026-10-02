@@ -50,7 +50,7 @@ We wanted to make sending an email as easy as sending a WhatsApp message. No pas
 <!-- REPLACE THE LINK BELOW WITH YOUR ACTUAL YOUTUBE/GITHUB VIDEO LINK -->
 <div align="center">
   <a href="https://drive.google.com/file/d/1_QG2SBG20NTiikTZU5C0SwawFDRgou0E/view?usp=sharing">
-    <img src="https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg" alt="PhoneMail Demo Video" width="800" style="border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); border: 2px solid #2496ED;" />
+    <img src="https://res.cloudinary.com/cnziuuur/image/upload/v1790914736/preview_zoqvdc.jpg" alt="PhoneMail Demo Video" width="200" style="border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); border: 2px solid #2496ED;" />
   </a>
   <br/>
   <em>▶️ Click the image to Play Video</em>
