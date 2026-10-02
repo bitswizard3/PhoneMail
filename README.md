@@ -18,7 +18,7 @@
   <br />
   <p align="center">
     <a href="#-why-did-we-build-this"><b>Why We Built This</b></a> •
-    <a href="#-demo-video"><b>Watch Demo</b></a> •
+    <a href="https://drive.google.com/file/d/1_QG2SBG20NTiikTZU5C0SwawFDRgou0E/view?usp=sharing"><b>Watch Demo</b></a> •
     <a href="#-the-magic-features"><b>Magic Features</b></a> •
     <a href="#-how-it-all-works"><b>How It Works</b></a> •
     <a href="#-how-to-test-the-app"><b>Test Guide</b></a>
